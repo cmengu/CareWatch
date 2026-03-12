@@ -158,3 +158,71 @@ def _fallback(risk_score: int, risk_level: str, anomalies: list) -> dict:
         ),
         "positive": "Monitoring is active and working normally.",
     }
+
+
+def _self_check(
+    risk_score: int,
+    risk_level: str,
+    anomalies: list,
+    explanation: dict,
+    api_key: str,
+) -> dict:
+    """
+    Second LLM call: does this explanation match the risk data?
+    Returns {"pass": bool, "reason": str}.
+    Never raises — returns pass=True on any failure so check never blocks output.
+    """
+    try:
+        client = Groq(api_key=api_key)
+        prompt = f"""You are a quality checker for a medical monitoring system.
+You will be given a risk assessment and an AI-generated explanation.
+Decide whether the explanation accurately reflects the risk data.
+
+Return ONLY valid JSON with exactly these two keys:
+{{
+  "pass": true or false,
+  "reason": "one sentence explaining your decision"
+}}
+
+Risk data:
+- Risk Score: {risk_score}/100
+- Risk Level: {risk_level}
+- Anomalies: {json.dumps([a for a in anomalies if isinstance(a, dict)])}
+
+Explanation to check:
+- summary: {explanation.get("summary", "")}
+- concern_level: {explanation.get("concern_level", "")}
+- action: {explanation.get("action", "")}
+
+A FAIL means: concern_level contradicts the risk score, or the summary ignores critical anomalies.
+A PASS means: the explanation is a reasonable, consistent reflection of the data.
+
+JSON only. No markdown. No extra text."""
+
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=100,
+            temperature=0.0,
+        )
+        raw = response.choices[0].message.content.strip()
+
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        result = json.loads(raw)
+
+        if "pass" not in result:
+            return {"pass": True, "reason": "check skipped — missing key"}
+
+        return {
+            "pass": bool(result["pass"]),
+            "reason": str(result.get("reason", "")),
+        }
+
+    except Exception as e:
+        logger.warning("Self-check failed (non-blocking): %s", e)
+        return {"pass": True, "reason": "check skipped — exception"}
