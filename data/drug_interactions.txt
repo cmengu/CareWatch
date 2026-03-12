@@ -1,0 +1,12 @@
+metformin: Take with food. Missing a dose for a diabetic elderly patient increases risk of hyperglycemia. Critical to take consistently.
+warfarin: Blood thinner. Missing doses causes stroke risk. Must be taken at the same time daily. Interaction with aspirin increases bleeding risk.
+lisinopril: Blood pressure medication. Missing doses can cause dangerous blood pressure spikes in elderly patients.
+amlodipine: Calcium channel blocker for blood pressure. Dizziness and falls are common side effects especially in elderly.
+atorvastatin: Cholesterol medication. Evening dose preferred. Missing occasional doses less critical than blood pressure meds.
+aspirin: Daily low-dose aspirin for heart patients. Do not combine with warfarin without doctor approval.
+omeprazole: Stomach acid reducer. Take 30 minutes before breakfast. Missing doses causes acid reflux discomfort.
+general: Elderly patients missing more than 2 doses of any critical medication should be flagged for family follow-up.
+general: Inactivity exceeding 4 hours during waking hours 7am to 9pm is a fall risk indicator in elderly patients.
+general: Sudden change in routine such as eating or walking patterns in elderly can indicate onset of infection or depression.
+fallen: Any fall in elderly patient requires immediate medical assessment even if patient appears uninjured.
+pill_taking: Missed pill-taking activity combined with risk score above 60 requires family notification within 1 hour.
