@@ -21,6 +21,7 @@ from src.logger import ActivityLogger
 from src.baseline_builder import BaselineBuilder
 from src.deviation_detector import DeviationDetector
 from src.agent import CareWatchAgent
+from src.models import AgentResult
 
 app = FastAPI(title="CareWatch API")
 
@@ -94,7 +95,7 @@ def get_risk():
     return detector.check(PERSON)
 
 
-@app.get("/api/agent/explain")
+@app.get("/api/agent/explain", response_model=AgentResult)
 def get_agent_explanation():
     """
     Full AI agent loop: risk score + RAG context + LLM explanation.

@@ -20,6 +20,7 @@ import json
 from datetime import datetime
 from src.logger import ActivityLogger
 from src.baseline_builder import BaselineBuilder
+from src.models import RiskResult
 
 # How many standard deviations off = anomaly
 Z_THRESHOLD = 2.0
@@ -39,7 +40,7 @@ class DeviationDetector:
         self.logger  = ActivityLogger()
         self.builder = BaselineBuilder(self.logger)
 
-    def check(self, person_id: str = "resident") -> dict:
+    def check(self, person_id: str = "resident") -> RiskResult:
         """
         Compare today's activity log vs stored baseline.
         Returns dict with: risk_score, risk_level, anomalies, summary
@@ -47,15 +48,15 @@ class DeviationDetector:
         # Immediate override — fallen is always critical
         last = self.logger.get_last_activity(person_id)
         if last and last["activity"] == "fallen" and last["confidence"] > 0.85:
-            return {
-                "risk_score":  100,
-                "risk_level":  "RED",
-                "anomalies":   [{"activity": "fallen", "type": "FALLEN",
-                                "message":  "FALL DETECTED — immediate attention required",
-                                "severity": "HIGH"}],
-                "summary":     "Fall detected. Immediate alert sent.",
-                "checked_at":  datetime.now().isoformat(),
-            }
+            return RiskResult(
+                risk_score=100,
+                risk_level="RED",
+                anomalies=[{"activity": "fallen", "type": "FALLEN",
+                            "message":  "FALL DETECTED — immediate attention required",
+                            "severity": "HIGH"}],
+                summary="Fall detected. Immediate alert sent.",
+                checked_at=datetime.now().isoformat(),
+            )
 
         baseline = self.builder.load_baseline(person_id)
         today_logs = self.logger.get_today(person_id)
@@ -65,12 +66,12 @@ class DeviationDetector:
         risk_points = 0
 
         if not baseline:
-            return {
-                "risk_score":  0,
-                "risk_level":  "UNKNOWN",
-                "anomalies":   ["No baseline built yet — need 7 days of data"],
-                "summary":     "Insufficient data",
-            }
+            return RiskResult(
+                risk_score=0,
+                risk_level="UNKNOWN",
+                anomalies=["No baseline built yet — need 7 days of data"],
+                summary="Insufficient data",
+            )
 
         # Count today's occurrences per activity
         today_counts = {}
@@ -137,13 +138,13 @@ class DeviationDetector:
             summary = f"{len(anomalies)} deviation(s) detected. " + \
                       (f"{len(high)} critical." if high else "No critical issues.")
 
-        return {
-            "risk_score":  risk_score,
-            "risk_level":  risk_level,
-            "anomalies":   anomalies,
-            "summary":     summary,
-            "checked_at":  datetime.now().isoformat(),
-        }
+        return RiskResult(
+            risk_score=risk_score,
+            risk_level=risk_level,
+            anomalies=anomalies,
+            summary=summary,
+            checked_at=datetime.now().isoformat(),
+        )
 
 
 def _hour_to_str(hour_float: float) -> str:

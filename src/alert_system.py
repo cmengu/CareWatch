@@ -85,6 +85,8 @@ class AlertSystem:
         if anomalies:
             lines.append("*Issues detected:*")
             for a in anomalies:
+                if not isinstance(a, dict):
+                    continue
                 sev_icon = "🔴" if a["severity"] == "HIGH" else "🟡" if a["severity"] == "MEDIUM" else "🔵"
                 lines.append(f"{sev_icon} {a['message']}")
 
