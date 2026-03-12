@@ -67,51 +67,21 @@ Health decline shows up in behaviour days before a crisis.
 CareWatch learns a resident's normal daily routine over 7 days.
 It flags when something feels wrong — before the crisis.
 
-## System Architecture
-CAMERA FEED
-     ↓
-┌─────────────────────────────────────────┐
-│           PERCEPTION ENGINE             │
-│  YOLO11x-pose → 17 keypoints/frame      │
-│  + Person tracking (ByteTrack)          │  
-│  + Confidence filtering (>0.6)          │  
-└─────────────────┬───────────────────────┘
-                  ↓
-┌─────────────────────────────────────────┐
-│         FEATURE ENGINEERING             │
-│  Raw keypoints → 8 joint angles         │
-│  + Velocity (how fast angles change)    │  
-│  + Symmetry score (left vs right)       │  
-└─────────────────┬───────────────────────┘
-                  ↓
-┌─────────────────────────────────────────┐
-│         ACTIVITY CLASSIFIER             │
-│  AngleLSTMNet (sequence of 30 frames)   │
-│  → sitting / eating / walking /         │
-│     pill_taking / lying / no_person     │
-└─────────────────┬───────────────────────┘
-                  ↓
-┌─────────────────────────────────────────┐
-│           MEMORY ENGINE                 │
-│  SQLite: logs every prediction          │
-│  {person_id, timestamp, activity,       │
-│   confidence, angles, velocity}         │
-└─────────────────┬───────────────────────┘
-                  ↓
-┌─────────────────────────────────────────┐
-│        INTELLIGENCE ENGINE              │
-│  baseline_builder: 7-day profile        │
-│  deviation_detector: z-score anomaly    │
-│  risk_scorer: weighted urgency 0-100    │  
-└─────────────────┬───────────────────────┘
-                  ↓
-          ┌───────┴────────┐
-          ↓                ↓
-┌──────────────┐   ┌──────────────────┐
-│ ALERT ENGINE │   │    DASHBOARD     │  ← THIS IS THE DEMO
-│ Telegram bot │   │   Streamlit app  │
-│ SMS fallback │   │   (family view)  │
-└──────────────┘   └──────────────────┘
+## Architecture
+
+### Perception → Intelligence → Action
+
+| Layer | Component | What it does |
+|-------|-----------|--------------|
+| **Perception** | YOLO11x-pose + ByteTrack | 17 keypoints per frame, person tracking, confidence >0.6 |
+| **Features** | AngleFeatureExtractor | 8 joint angles + velocity + left/right symmetry score |
+| **Classifier** | AngleLSTMNet (30 frames) | sitting / eating / walking / pill_taking / lying / no_person |
+| **Memory** | SQLite via ActivityLogger | Logs every prediction with timestamp, confidence, angles |
+| **Baseline** | BaselineBuilder | 7-day routine profile per resident |
+| **Anomaly** | DeviationDetector | Z-score deviation → risk score 0–100 |
+| **AI Agent** | CareWatchAgent | RAG context + Groq LLM → plain-English explanation |
+| **Alerts** | Telegram Bot | Fires on YELLOW/RED with AI-generated family message |
+| **Dashboard** | Next.js + FastAPI | `/api/agent/explain` — live risk + AI explanation |
 
 ## What It Detects
 - Missed medication
