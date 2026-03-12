@@ -129,6 +129,34 @@ JSON only. No markdown. No extra text. No explanation outside the JSON."""
         if parsed["concern_level"] not in ("normal", "watch", "urgent"):
             parsed["concern_level"] = _LEVEL_TO_CONCERN.get(risk_level, "watch")
 
+        # Self-check — does this explanation actually match the risk data?
+        check = _self_check(risk_score, risk_level, anomalies, parsed, api_key)
+        if not check["pass"]:
+            logger.info("Self-check failed (%s) — retrying once", check["reason"])
+            retry_prompt = prompt + f"\n\nPrevious attempt was rejected because: {check['reason']}. Correct this in your response."
+            try:
+                retry_response = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[{"role": "user", "content": retry_prompt}],
+                    max_tokens=300,
+                    temperature=0.3,
+                )
+                raw_retry = retry_response.choices[0].message.content.strip()
+                if raw_retry.startswith("```"):
+                    raw_retry = raw_retry.split("```")[1]
+                    if raw_retry.startswith("json"):
+                        raw_retry = raw_retry[4:]
+                    raw_retry = raw_retry.strip()
+                retry_parsed = json.loads(raw_retry)
+                if {"summary", "concern_level", "action", "positive"}.issubset(retry_parsed.keys()):
+                    retry_parsed["concern_level"] = retry_parsed["concern_level"].lower().strip()
+                    if retry_parsed["concern_level"] not in ("normal", "watch", "urgent"):
+                        retry_parsed["concern_level"] = _LEVEL_TO_CONCERN.get(risk_level, "watch")
+                    logger.info("Retry succeeded — returning corrected explanation")
+                    return retry_parsed
+            except Exception as e:
+                logger.warning("Retry failed: %s — returning original explanation", e)
+
         return parsed
 
     except json.JSONDecodeError as e:
