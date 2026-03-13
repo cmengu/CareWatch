@@ -92,7 +92,12 @@ class CareWatchAgent:
         rag_context = self.rag.get_context(anomalies)
 
         if rag_context:
-            logger.info("RAG context retrieved (%d chars)", len(rag_context))
+            relevance_score = self.rag._score_relevance(rag_context, anomalies)
+            if relevance_score < 0.5:
+                logger.info("RAG context scored %.2f — below threshold, skipping", relevance_score)
+                rag_context = ""
+            else:
+                logger.info("RAG context retrieved (%d chars), relevance score: %.2f", len(rag_context), relevance_score)
         else:
             logger.info("RAG: no context (unavailable or no dict anomalies)")
 
