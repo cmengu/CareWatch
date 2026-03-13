@@ -104,12 +104,17 @@ class CareWatchAgent:
             logger.info("RAG: no context (unavailable or no dict anomalies)")
 
         # Step 3 — LLM explanation, fallback built into explain_risk()
+        trend = self.audit.compute_trend(person_id)
+        memory_context = trend["history"] if trend["label"] != "INSUFFICIENT_DATA" else ""
+        if memory_context:
+            logger.info("Memory injected: trend=%s (%d rows)", trend["label"], trend["count"])
         explanation = explain_risk(
             person_id=person_id,
             risk_score=risk_result.risk_score,
             risk_level=risk_result.risk_level,
             anomalies=anomalies,
             rag_context=rag_context,
+            memory_context=memory_context,
         )
         logger.info("LLM concern_level: %s", explanation.get("concern_level"))
 
