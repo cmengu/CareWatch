@@ -101,3 +101,65 @@ class AuditLogger:
         except Exception as e:
             logger.error("Audit read failed: %s", e)
             return []
+
+    def compute_trend(self, person_id: str = "resident", n: int = 7) -> dict:
+        """
+        Compute trend label and formatted history from last n agent runs.
+        Returns:
+            {
+                "label":   str,   # ESCALATING | IMPROVING | STABLE | INSUFFICIENT_DATA
+                "history": str,   # formatted string for LLM prompt injection
+                "count":   int,   # number of rows used
+            }
+        Never raises.
+        """
+        try:
+            rows = self.get_last_n(n, person_id)
+            if len(rows) < 3:
+                return {
+                    "label":   "INSUFFICIENT_DATA",
+                    "history": "",
+                    "count":   len(rows),
+                }
+
+            # Rows are newest-first from get_last_n — reverse for oldest-first trend
+            rows_asc = list(reversed(rows))
+
+            concern_levels = [r["concern_level"] for r in rows_asc]
+            _rank = {"normal": 0, "watch": 1, "urgent": 2}
+            ranked = [_rank.get(c, 1) for c in concern_levels]
+
+            # Trend: compare first half average to second half average
+            mid   = len(ranked) // 2
+            first = sum(ranked[:mid]) / mid
+            last  = sum(ranked[mid:]) / (len(ranked) - mid)
+
+            if last - first >= 0.5:
+                label = "ESCALATING"
+            elif first - last >= 0.5:
+                label = "IMPROVING"
+            else:
+                label = "STABLE"
+
+            # Format history string for prompt injection
+            lines = []
+            for r in rows_asc:
+                date = r["timestamp"][:10]
+                lines.append(
+                    f"  {date}: risk={r['risk_level']:<8} concern={r['concern_level']}"
+                )
+            history = "\n".join(lines)
+
+            return {
+                "label":   label,
+                "history": history,
+                "count":   len(rows),
+            }
+
+        except Exception as e:
+            logger.error("Trend computation failed: %s", e)
+            return {
+                "label":   "INSUFFICIENT_DATA",
+                "history": "",
+                "count":   0,
+            }
