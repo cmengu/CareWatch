@@ -57,6 +57,7 @@ def explain_risk(
     risk_level: str,
     anomalies: list,
     rag_context: str = "",
+    memory_context: str = "",
 ) -> dict:
     """
     Call Groq to explain a risk result in plain English for a family member.
@@ -65,6 +66,7 @@ def explain_risk(
 
     anomalies: list of dicts from deviation_detector.check() — strings are tolerated
     rag_context: plain string from RAGRetriever.get_context() — empty string is fine
+    memory_context: formatted history from AuditLogger.compute_trend() — empty omits memory block
     """
     # Check key at call time (not import time) so missing key → fallback, not crash
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
@@ -77,6 +79,12 @@ def explain_risk(
     context_block = (
         f"\nMedical context from knowledge base:\n{rag_context}"
         if rag_context else ""
+    )
+    memory_block = (
+        f"\nPatient history (last 7 days, oldest to newest):\n{memory_context}"
+        f"\nUse this trend as context. If ESCALATING, lean toward higher concern."
+        f" If IMPROVING, note the positive trend."
+        if memory_context else ""
     )
 
     prompt = f"""You are CareWatch, a caring elderly monitoring assistant.
@@ -91,6 +99,30 @@ Return ONLY valid JSON with exactly these four keys:
   "positive": "one positive observation about today"
 }}
 
+Rules for determining concern_level — severity overrides everything else:
+
+PRIORITY ORDER: anomaly severity > risk_score > risk_level. Always.
+
+1. FALL DETECTED anywhere in anomalies → urgent. No exceptions.
+2. Any anomaly with severity=HIGH → urgent.
+   This applies even if risk_score is low (30) or risk_level is GREEN or UNKNOWN.
+   Do not average HIGH with LOW. One HIGH is enough.
+3. All anomalies are severity=LOW → concern_level is watch. Never urgent.
+   This applies even if risk_score is 90 or risk_level is RED.
+   HIGH score + ALL LOW severity = watch. The score reflects timing, not danger.
+4. anomalies is empty and risk_score < 40 → normal.
+5. risk_level=UNKNOWN → use risk_score and severity only. Ignore the UNKNOWN label.
+6. risk_level contradicts risk_score → trust risk_score and severity. Ignore risk_level.
+
+Concrete examples you must match exactly:
+- risk_score=15, risk_level=RED, anomalies empty → normal (rule 4)
+- risk_score=75, risk_level=RED, all LOW severity → watch (rule 3)
+- risk_score=90, risk_level=RED, all LOW severity → watch (rule 3)
+- risk_score=30, risk_level=GREEN, one HIGH severity → urgent (rule 2)
+- risk_score=50, risk_level=YELLOW, one HIGH + three LOW → urgent (rule 2)
+- risk_score=85, risk_level=UNKNOWN, one HIGH severity → urgent (rule 2 + rule 5)
+
+{memory_block}
 Data:
 - Person: {person_id}
 - Risk Score: {risk_score}/100
