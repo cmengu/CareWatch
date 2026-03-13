@@ -24,6 +24,42 @@ from src.models import AgentResult, AIExplanation
 logger = logging.getLogger(__name__)
 
 
+def _check_confidence(result: "AgentResult") -> str:
+    """
+    Inspect assembled AgentResult for internal contradictions.
+    Returns "low" if score and concern_level point in opposite directions hard enough
+    that no reasonable interpretation reconciles them. Returns "high" otherwise.
+    Never raises.
+
+    Contradiction cases:
+        risk_score > 70 + concern_level = normal  → LLM under-alarmed despite high score
+        risk_score < 20 + concern_level = urgent  → LLM over-alarmed despite clean score
+    """
+    try:
+        score = result.risk_score
+        concern = result.ai_explanation.concern_level
+
+        if score > 70 and concern == "normal":
+            logger.warning(
+                "Low confidence: risk_score=%d but concern_level=normal — suppressing alert",
+                score,
+            )
+            return "low"
+
+        if score < 20 and concern == "urgent":
+            logger.warning(
+                "Low confidence: risk_score=%d but concern_level=urgent — suppressing alert",
+                score,
+            )
+            return "low"
+
+        return "high"
+
+    except Exception as e:
+        logger.error("Confidence check failed (non-blocking): %s", e)
+        return "high"  # fail open — don't suppress alerts on check failure
+
+
 class CareWatchAgent:
     def __init__(self):
         self.detector = DeviationDetector()
@@ -125,8 +161,9 @@ class CareWatchAgent:
             rag_context_used=bool(rag_context),
         )
 
-        # Step 5 — alert gate (alert_system only fires on YELLOW/RED)
-        if send_alert:
+        # Step 5 — confidence gate then alert gate
+        full_result.confidence = _check_confidence(full_result)
+        if send_alert and full_result.confidence == "high":
             self.alerts.send(
                 full_result,
                 person_name=person_id.replace("_", " ").title(),
