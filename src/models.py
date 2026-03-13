@@ -52,7 +52,9 @@ class AgentResult(RiskResult):
     Output of CareWatchAgent.run().
     Extends RiskResult with AI layer fields.
     error is Optional — only present when detector.check() raised.
+    confidence is "high" by default — set to "low" when score and concern_level contradict.
     """
     ai_explanation:   AIExplanation
     rag_context_used: bool
     error:            Optional[str] = None
+    confidence:       str           = Field("high", pattern="^(high|low)$")
