@@ -18,6 +18,7 @@ from src.deviation_detector import DeviationDetector
 from src.rag_retriever import RAGRetriever
 from src.llm_explainer import explain_risk
 from src.alert_system import AlertSystem
+from src.audit_logger import AuditLogger
 from src.models import AgentResult, AIExplanation
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class CareWatchAgent:
         self.detector = DeviationDetector()
         self.rag      = RAGRetriever()
         self.alerts   = AlertSystem()
+        self.audit    = AuditLogger()
 
     def run(self, person_id: str = "resident", send_alert: bool = True) -> AgentResult:
         """
@@ -125,4 +127,5 @@ class CareWatchAgent:
                 person_name=person_id.replace("_", " ").title(),
             )
 
+        self.audit.write(person_id, full_result)
         return full_result
