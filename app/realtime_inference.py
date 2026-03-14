@@ -27,7 +27,7 @@ from ultralytics import YOLO
 from src.classification_keypoint import AngleFeatureExtractor, AngleLSTMNet, SEQUENCE_LENGTH, NUM_ANGLE_FEATURES
 from src.logger import ActivityLogger
 from src.deviation_detector import DeviationDetector
-from src.alert_system import AlertSystem
+from src.suppression import AlertSuppressionLayer
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 POSE_MODEL_PATH  = "yolo11x-pose.pt"
@@ -156,7 +156,7 @@ def deviation_check_loop():
     """Background thread: compare today vs baseline, send alerts if needed."""
     while True:
         result = DeviationDetector().check("resident")
-        AlertSystem().send(result, person_name="Mrs Tan")
+        AlertSuppressionLayer().send(result, person_name="Mrs Tan", resident_id="default")
         time.sleep(900)  # 15 minutes
 
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
