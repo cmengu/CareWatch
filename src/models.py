@@ -53,8 +53,10 @@ class AgentResult(RiskResult):
     Extends RiskResult with AI layer fields.
     error is Optional — only present when detector.check() raised.
     confidence is "high" by default — set to "low" when score and concern_level contradict.
+    cusum_result is Optional — CUSUMCheckResult serialized as dict from ResidentCUSUMMonitor.check().
     """
     ai_explanation:   AIExplanation
     rag_context_used: bool
     error:            Optional[str] = None
     confidence:       str           = Field("high", pattern="^(high|low)$")
+    cusum_result:     Optional[dict] = None

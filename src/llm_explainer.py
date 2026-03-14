@@ -99,28 +99,22 @@ Return ONLY valid JSON with exactly these four keys:
   "positive": "one positive observation about today"
 }}
 
-Rules for determining concern_level — severity overrides everything else:
+DECISION TABLE for concern_level — apply top-to-bottom, stop at first match:
+IF fall detected in anomalies                    → urgent
+IF any anomaly has severity=HIGH               → urgent
+IF all anomalies have severity=LOW              → watch (score is irrelevant)
+IF anomalies empty AND risk_score < 40         → normal
+IF anomalies empty AND risk_score >= 40        → watch (score is the signal)
+DEFAULT                                         → watch
 
-PRIORITY ORDER: anomaly severity > risk_score > risk_level. Always.
-
-1. FALL DETECTED anywhere in anomalies → urgent. No exceptions.
-2. Any anomaly with severity=HIGH → urgent.
-   This applies even if risk_score is low (30) or risk_level is GREEN or UNKNOWN.
-   Do not average HIGH with LOW. One HIGH is enough.
-3. All anomalies are severity=LOW → concern_level is watch. Never urgent.
-   This applies even if risk_score is 90 or risk_level is RED.
-   HIGH score + ALL LOW severity = watch. The score reflects timing, not danger.
-4. anomalies is empty and risk_score < 40 → normal.
-5. risk_level=UNKNOWN → use risk_score and severity only. Ignore the UNKNOWN label.
-6. risk_level contradicts risk_score → trust risk_score and severity. Ignore risk_level.
-
-Concrete examples you must match exactly:
-- risk_score=15, risk_level=RED, anomalies empty → normal (rule 4)
-- risk_score=75, risk_level=RED, all LOW severity → watch (rule 3)
-- risk_score=90, risk_level=RED, all LOW severity → watch (rule 3)
-- risk_score=30, risk_level=GREEN, one HIGH severity → urgent (rule 2)
-- risk_score=50, risk_level=YELLOW, one HIGH + three LOW → urgent (rule 2)
-- risk_score=85, risk_level=UNKNOWN, one HIGH severity → urgent (rule 2 + rule 5)
+Examples you must match exactly:
+- risk_score=15, risk_level=RED, anomalies empty → normal
+- risk_score=75, risk_level=GREEN, anomalies empty → watch (high score overrides clean level)
+- risk_score=75, risk_level=RED, all LOW severity → watch
+- risk_score=90, risk_level=RED, all LOW severity → watch
+- risk_score=30, risk_level=GREEN, one HIGH severity → urgent
+- risk_score=50, risk_level=YELLOW, one HIGH + three LOW → urgent
+- risk_score=85, risk_level=UNKNOWN, one HIGH severity → urgent
 
 {memory_block}
 Data:
@@ -134,19 +128,25 @@ JSON only. No markdown. No extra text. No explanation outside the JSON."""
     try:
         client = Groq(api_key=api_key)
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",  # llama3-8b-8192 decommissioned; this is the replacement
+            model="llama-3.3-70b-versatile",  # better instruction following than 8b-instant
             messages=[{"role": "user", "content": prompt}],
             max_tokens=300,
             temperature=0.3,
         )
         raw = response.choices[0].message.content.strip()
-
+        print("DEBUG RAW BEFORE CLEAN:", repr(raw)) 
         # Strip markdown code fences if model wraps response anyway
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
             raw = raw.strip()
+
+        # Find the JSON object if model added prose around it
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        if start != -1 and end > start:
+            raw = raw[start:end]
 
         parsed = json.loads(raw)
 
@@ -168,7 +168,7 @@ JSON only. No markdown. No extra text. No explanation outside the JSON."""
             retry_prompt = prompt + f"\n\nPrevious attempt was rejected because: {check['reason']}. Correct this in your response."
             try:
                 retry_response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
+                    model="llama-3.3-70b-versatile",
                     messages=[{"role": "user", "content": retry_prompt}],
                     max_tokens=300,
                     temperature=0.3,
@@ -179,6 +179,11 @@ JSON only. No markdown. No extra text. No explanation outside the JSON."""
                     if raw_retry.startswith("json"):
                         raw_retry = raw_retry[4:]
                     raw_retry = raw_retry.strip()
+                # Find the JSON object if model added prose around it
+                start = raw_retry.find("{")
+                end = raw_retry.rfind("}") + 1
+                if start != -1 and end > start:
+                    raw_retry = raw_retry[start:end]
                 retry_parsed = json.loads(raw_retry)
                 if {"summary", "concern_level", "action", "positive"}.issubset(retry_parsed.keys()):
                     retry_parsed["concern_level"] = retry_parsed["concern_level"].lower().strip()
@@ -260,9 +265,9 @@ A PASS means: the explanation is a reasonable, consistent reflection of the data
 JSON only. No markdown. No extra text."""
 
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=100,
+            max_tokens=300,
             temperature=0.0,
         )
         raw = response.choices[0].message.content.strip()
@@ -272,6 +277,15 @@ JSON only. No markdown. No extra text."""
             if raw.startswith("json"):
                 raw = raw[4:]
             raw = raw.strip()
+
+        # LLM sometimes returns Python None instead of JSON null
+        raw = raw.replace(": None", ": null").replace(":None", ": null")
+
+        # Find the JSON object if model added prose around it
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        if start != -1 and end > start:
+            raw = raw[start:end]
 
         result = json.loads(raw)
 

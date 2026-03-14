@@ -12,9 +12,11 @@ USAGE:
     # result["rag_context_used"]          — bool, True if medical context was retrieved
 """
 
+import dataclasses
 import logging
 
 from src.deviation_detector import DeviationDetector
+from src.cusum_monitor import ResidentCUSUMMonitor
 from src.rag_retriever import RAGRetriever
 from src.llm_explainer import explain_risk
 from src.suppression import AlertSuppressionLayer
@@ -62,8 +64,9 @@ def _check_confidence(result: "AgentResult") -> str:
 
 class CareWatchAgent:
     def __init__(self):
-        self.detector = DeviationDetector()
-        self.rag      = RAGRetriever()
+        self.detector      = DeviationDetector()
+        self.cusum_monitor = ResidentCUSUMMonitor()
+        self.rag           = RAGRetriever()
         self.alerts   = AlertSuppressionLayer()
         self.audit    = AuditLogger()
 
@@ -100,6 +103,8 @@ class CareWatchAgent:
         # Step 1 — existing risk logic, zero changes to deviation_detector.py
         try:
             risk_result = self.detector.check(person_id)
+            cusum_result = self.cusum_monitor.check(person_id)
+            logger.info("CUSUM check: %s", cusum_result.summary)
         except Exception as e:
             logger.error("Detector failed: %s", e)
             return AgentResult(
@@ -115,6 +120,7 @@ class CareWatchAgent:
                     positive="Alert has been logged for review.",
                 ),
                 rag_context_used=False,
+                cusum_result=None,
             )
 
         logger.info(
@@ -159,6 +165,7 @@ class CareWatchAgent:
             **risk_result.model_dump(),
             ai_explanation=AIExplanation(**explanation) if isinstance(explanation, dict) else explanation,
             rag_context_used=bool(rag_context),
+            cusum_result=dataclasses.asdict(cusum_result),
         )
 
         # Step 5 — confidence gate then alert gate
