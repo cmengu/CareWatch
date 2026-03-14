@@ -167,6 +167,7 @@ class CareWatchAgent:
             self.alerts.send(
                 full_result.model_dump(),
                 person_name=person_id.replace("_", " ").title(),
+                resident_id=person_id,
             )
 
         self.audit.write(person_id, full_result)

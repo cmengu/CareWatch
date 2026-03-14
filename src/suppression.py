@@ -8,8 +8,11 @@ suppression when severity escalates (e.g. YELLOW → RED).
 
 import sqlite3
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from src.alert_system import AlertSystem
+
+_DEFAULT_DB_PATH = str(Path(__file__).resolve().parents[1] / "data" / "carewatch.db")
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +43,8 @@ class AlertSuppressionLayer:
     Logs every decision — fired or suppressed — to alert_suppression table.
     """
 
-    def __init__(self, db_path: str = "data/carewatch.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: str | None = None):
+        self.db_path = db_path if db_path is not None else _DEFAULT_DB_PATH
         self.alert_system = AlertSystem()
 
     def send(
@@ -65,7 +68,7 @@ class AlertSuppressionLayer:
             }
 
         window_minutes = SUPPRESSION_WINDOWS.get(risk_level, 0)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Query 1 — should same-level alert be suppressed?
         within_window, suppression_reason = self._same_level_within_window(
@@ -173,9 +176,10 @@ class AlertSuppressionLayer:
         if row is None:
             return False, None
 
-        minutes_ago = (
-            now - datetime.fromisoformat(row[0])
-        ).total_seconds() / 60
+        parsed = datetime.fromisoformat(row[0])
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        minutes_ago = (now - parsed).total_seconds() / 60
         reason = (
             f"Same alert ({risk_level}) fired {minutes_ago:.1f} min ago. "
             f"Window: {window_minutes} min."

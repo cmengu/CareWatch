@@ -11,8 +11,9 @@ escalation detection.
 """
 
 import sqlite3
+from pathlib import Path
 
-DB_PATH = "data/carewatch.db"
+DB_PATH = str(Path(__file__).resolve().parents[1] / "data" / "carewatch.db")
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS alert_suppression (
