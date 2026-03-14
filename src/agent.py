@@ -17,7 +17,7 @@ import logging
 from src.deviation_detector import DeviationDetector
 from src.rag_retriever import RAGRetriever
 from src.llm_explainer import explain_risk
-from src.alert_system import AlertSystem
+from src.suppression import AlertSuppressionLayer
 from src.audit_logger import AuditLogger
 from src.models import AgentResult, AIExplanation
 
@@ -64,7 +64,7 @@ class CareWatchAgent:
     def __init__(self):
         self.detector = DeviationDetector()
         self.rag      = RAGRetriever()
-        self.alerts   = AlertSystem()
+        self.alerts   = AlertSuppressionLayer()
         self.audit    = AuditLogger()
 
     def run(self, person_id: str = "resident", send_alert: bool = True) -> AgentResult:
@@ -165,7 +165,7 @@ class CareWatchAgent:
         full_result.confidence = _check_confidence(full_result)
         if send_alert and full_result.confidence == "high":
             self.alerts.send(
-                full_result,
+                full_result.model_dump(),
                 person_name=person_id.replace("_", " ").title(),
             )
 
