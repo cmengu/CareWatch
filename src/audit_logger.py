@@ -18,6 +18,7 @@ Schema:
     concern_level   — normal | watch | urgent from LLM
     rag_context_used — 1 or 0 — whether RAG context was passed to LLM
     error           — error string if detector failed, NULL otherwise
+    confidence      — high | low — from _check_confidence (suppressed-alert visibility)
 """
 
 import sqlite3
@@ -37,7 +38,7 @@ class AuditLogger:
         self._init_db()
 
     def _init_db(self):
-        """Create agent_runs table if it does not exist."""
+        """Create agent_runs table if it does not exist. Add confidence column if missing."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS agent_runs (
@@ -51,6 +52,11 @@ class AuditLogger:
                     error            TEXT
                 )
             """)
+            # Add confidence column for Day 7 — existing DBs may not have it
+            try:
+                conn.execute("ALTER TABLE agent_runs ADD COLUMN confidence TEXT DEFAULT 'high'")
+            except sqlite3.OperationalError:
+                pass  # column already exists
             conn.commit()
 
     def write(self, person_id: str, result) -> None:
@@ -64,8 +70,8 @@ class AuditLogger:
                 conn.execute("""
                     INSERT INTO agent_runs
                         (person_id, timestamp, risk_score, risk_level,
-                         concern_level, rag_context_used, error)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                         concern_level, rag_context_used, error, confidence)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     person_id,
                     datetime.now().isoformat(),
@@ -74,14 +80,16 @@ class AuditLogger:
                     result.ai_explanation.concern_level,
                     int(result.rag_context_used),
                     result.error if hasattr(result, "error") else None,
+                    getattr(result, "confidence", "high"),
                 ))
                 conn.commit()
             logger.info(
-                "Audit written: %s risk=%s concern=%s rag=%s",
+                "Audit written: %s risk=%s concern=%s rag=%s conf=%s",
                 person_id,
                 result.risk_level,
                 result.ai_explanation.concern_level,
                 result.rag_context_used,
+                getattr(result, "confidence", "high"),
             )
         except Exception as e:
             logger.error("Audit write failed (non-blocking): %s", e)

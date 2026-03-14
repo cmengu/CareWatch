@@ -112,7 +112,7 @@ Retrieved context:
 JSON only. No markdown. No extra text."""
 
             response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=100,
                 temperature=0.0,
@@ -124,6 +124,12 @@ JSON only. No markdown. No extra text."""
                 if raw.startswith("json"):
                     raw = raw[4:]
                 raw = raw.strip()
+
+            # Find the JSON object if model added prose around it
+            start = raw.find("{")
+            end = raw.rfind("}") + 1
+            if start != -1 and end > start:
+                raw = raw[start:end]
 
             result = json.loads(raw)
             score = float(result.get("score", 1.0))
