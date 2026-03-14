@@ -74,7 +74,7 @@ class CareWatchAgent:
           2. Retrieve RAG context — RAGRetriever.get_context()
           3. LLM explanation     — explain_risk()
           4. Merge result dict
-          5. Optional alert      — AlertSystem.send() (YELLOW/RED only)
+          5. Optional alert      — AlertSuppressionLayer.send() (YELLOW/RED only)
 
         Returns unified dict. Never raises.
 
