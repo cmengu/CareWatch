@@ -1,3 +1,7 @@
+# CareWatch Knowledge Base
+# Format: topic: detail
+# Blank lines and # lines are skipped by knowledge_base.py
+
 metformin: Take with food. Missing a dose for a diabetic elderly patient increases risk of hyperglycemia. Critical to take consistently.
 warfarin: Blood thinner. Missing doses causes stroke risk. Must be taken at the same time daily. Interaction with aspirin increases bleeding risk.
 lisinopril: Blood pressure medication. Missing doses can cause dangerous blood pressure spikes in elderly patients.
@@ -5,8 +9,43 @@ amlodipine: Calcium channel blocker for blood pressure. Dizziness and falls are 
 atorvastatin: Cholesterol medication. Evening dose preferred. Missing occasional doses less critical than blood pressure meds.
 aspirin: Daily low-dose aspirin for heart patients. Do not combine with warfarin without doctor approval.
 omeprazole: Stomach acid reducer. Take 30 minutes before breakfast. Missing doses causes acid reflux discomfort.
-general: Elderly patients missing more than 2 doses of any critical medication should be flagged for family follow-up.
-general: Inactivity exceeding 4 hours during waking hours 7am to 9pm is a fall risk indicator in elderly patients.
-general: Sudden change in routine such as eating or walking patterns in elderly can indicate onset of infection or depression.
-fallen: Any fall in elderly patient requires immediate medical assessment even if patient appears uninjured.
-pill_taking: Missed pill-taking activity combined with risk score above 60 requires family notification within 1 hour.
+general_missed_doses: Elderly patients missing more than 2 doses of any critical medication should be flagged for family follow-up.
+general_inactivity: Inactivity exceeding 4 hours during waking hours 7am to 9pm is a fall risk indicator in elderly patients.
+general_routine_change: Sudden change in routine such as eating or walking patterns in elderly can indicate onset of infection or depression.
+fallen_assessment: Any fall in elderly patient requires immediate medical assessment even if patient appears uninjured.
+pill_taking_missed_critical: Missed pill-taking activity combined with risk score above 60 requires family notification within 1 hour.
+fall_response_immediate: If a fall is detected, do not attempt to move the resident. Call emergency services (995 in Singapore) if the resident is unresponsive, bleeding, or complaining of head or hip pain.
+fall_response_conscious: If resident is conscious and alert after a fall, keep them calm and warm. Do not leave them alone. Check for pain in hip, wrist, or head before assisting them to stand.
+fall_risk_hip_fracture: Hip fracture is the most dangerous fall complication in elderly patients. Risk increases significantly after age 75. Signs include inability to bear weight, shortened or rotated leg, severe groin pain.
+fall_risk_head_injury: Head injury after a fall can be silent. Watch for confusion, vomiting, unequal pupils, or drowsiness in the 24 hours following any fall. Seek immediate medical attention if observed.
+fall_risk_medication: Medications that increase fall risk include sedatives, antihypertensives, diuretics, antidepressants, and antipsychotics. A pharmacist review is recommended after any fall event.
+fall_risk_dehydration: Dehydration causes dizziness and orthostatic hypotension in elderly patients, significantly increasing fall risk. Encourage 6-8 glasses of water daily.
+fall_risk_lying_down_extended: Prolonged lying down more than 2 consecutive hours outside sleep hours may indicate post-fall inability to rise, acute illness, or extreme fatigue. Check on resident immediately.
+fall_post_event_monitoring: After a confirmed fall, increase monitoring frequency to every 30 minutes for the first 4 hours. Document time, location, and activity at time of fall.
+fall_detection_confidence: A fall classification with confidence above 0.85 is considered a confirmed fall event. Confidence 0.70 to 0.85 is a probable fall and warrants visual confirmation.
+fall_prevention_footwear: Inappropriate footwear such as socks on smooth floors or loose slippers contributes to approximately 40% of falls in elderly residents. Recommend non-slip footwear at all times.
+pill_taking_missed_dose: A missed medication dose should be flagged to the caregiver within 1 hour of the expected administration window. Do not double-dose without consulting a pharmacist or doctor.
+pill_taking_timing_critical: For anticoagulants, antiepileptics, and Parkinson medications, timing is critical. Doses more than 2 hours late require immediate caregiver notification.
+pill_taking_morning_window: Most critical medications for elderly patients are prescribed in the morning 7 to 9am. If pill_taking activity is absent after 10am, treat as a missed dose event.
+pill_taking_interaction_warfarin_aspirin: Warfarin combined with aspirin significantly increases bleeding risk. Any fall event in a resident on anticoagulants should be treated as HIGH severity regardless of apparent injury.
+pill_taking_interaction_diuretic_fall: Diuretics increase urination frequency, causing residents to rush to the bathroom, elevating fall risk especially at night. Night-time walking combined with diuretic use warrants close monitoring.
+pill_taking_interaction_sedative_fall: Benzodiazepines and sedating antihistamines significantly impair balance in elderly patients. Walking or standing within 2 hours of sedative administration should be monitored.
+pill_taking_adherence: Medication non-adherence in elderly patients is associated with significant preventable hospitalisation. Monitoring pill-taking activity is among the highest-priority functions of CareWatch.
+eating_missed_meal: A missed meal should be flagged if eating activity is absent more than 2 hours past the resident usual mealtime. Skipping meals contributes to malnutrition, hypoglycaemia, and medication side effects.
+eating_hypoglycaemia_risk: Residents on insulin or sulfonylureas who miss meals are at serious risk of hypoglycaemia. Symptoms include confusion, sweating, shakiness, and loss of consciousness. Treat as medical emergency.
+eating_appetite_loss: Reduced appetite in elderly patients can signal depression, infection, medication side effects, or dental pain. If eating drops below 50% of baseline frequency for 3 or more consecutive days, notify caregiver.
+eating_timing_diabetic: For diabetic residents, meal timing is as important as meal content. Delays of more than 1 hour from usual mealtime combined with insulin doses can cause dangerous blood sugar fluctuations.
+walking_reduced_activity: A significant reduction in walking activity below 50% of baseline may indicate pain, fatigue, illness, or post-fall fear. Persistent reduction warrants a physiotherapy assessment.
+walking_night_fall_risk: Walking activity at night carries significantly higher fall risk than daytime walking due to reduced visibility, disorientation, and lower muscle readiness.
+sitting_prolonged_risk: Sitting for more than 4 consecutive hours increases risk of deep vein thrombosis, pressure sores, and muscle deconditioning in elderly patients. Encourage standing or brief walks hourly.
+night_wandering_definition: Night wandering is defined as walking activity detected between 10pm and 5am outside the resident normal sleep pattern. This is a common early indicator of dementia or sundowning syndrome.
+night_wandering_dementia: Night wandering is present in up to 66% of dementia patients. Increased frequency may indicate disease progression.
+night_wandering_safety: Unsupervised night wandering carries fall risk, especially in low-light conditions. Ensure pathways are clear, night lights are installed, and stairways are secured.
+night_wandering_pain: Unexplained night waking and wandering can indicate unmanaged pain such as arthritis or neuropathy. Review analgesic timing if wandering coincides with pain medication schedule.
+monitoring_anomaly_high: HIGH severity anomalies such as missed medication or confirmed fall require caregiver notification within 15 minutes.
+monitoring_anomaly_medium: MEDIUM severity anomalies such as unusual meal timing or reduced walking require caregiver notification within 1 hour.
+monitoring_trend_escalating: An escalating trend with risk score increasing over 3 or more consecutive days is a stronger concern indicator than any single day score.
+caregiver_clear_protocol: After a caregiver sends the clear command for a fall alert, a follow-up physical check must be documented within 2 hours. Digital acknowledgement alone is insufficient.
+emergency_contacts_singapore: Singapore emergency services: 995 for ambulance and fire, 999 for police. Agency for Integrated Care helpline: 1800-650-6060.
+medication_review_after_fall: After any fall, conduct a medication review to identify drugs that may have contributed. Consider deprescribing or adjusting doses of sedatives, benzodiazepines, or antihypertensives.
+fall_risk_environment: Common environmental fall hazards include loose rugs, wet floors, poor lighting, and cluttered pathways. Regular home safety assessments can reduce fall risk by up to 30%.
