@@ -19,8 +19,10 @@ USAGE:
     alerts.send(risk_result)   # pass output from DeviationDetector.check()
 """
 
+import html
 import logging
 import os
+import re
 import requests
 from pathlib import Path
 
@@ -59,6 +61,7 @@ class AlertSystem:
         """
         Send an alert based on deviation detector output.
         Only sends if risk_level is YELLOW or RED.
+        All user/LLM content is HTML-escaped to prevent injection and malformed HTML.
         """
         level = risk_result.get("risk_level", "UNKNOWN")
         score = risk_result.get("risk_score", 0)
@@ -69,34 +72,43 @@ class AlertSystem:
             logger.info("%s — all normal, no alert sent.", person_name)
             return
 
+        # Escape all dynamic content for HTML parse_mode — prevents injection and malformed messages
+        person_name_safe = html.escape(str(person_name))
+        summary_safe = html.escape(str(risk_result.get("summary", "No summary available.")))
+
         emoji = RISK_EMOJI.get(level, "❓")
         time_str = datetime.now().strftime("%I:%M %p")
 
-        # Build message
+        # Build message — HTML parse_mode so underscores in resident_0042 are preserved
+        # (Markdown treats _ as italic and eats it, breaking /clear resident_0042)
         lines = [
-            f"{emoji} *CareWatch Alert — {person_name}*",
+            f"{emoji} <b>CareWatch Alert — {person_name_safe}</b>",
             f"📅 {datetime.now().strftime('%A, %d %b %Y')} at {time_str}",
-            f"Risk Level: *{level}* (score: {score}/100)",
+            f"Risk Level: <b>{level}</b> (score: {score}/100)",
             "",
-            f"_{risk_result.get('summary', 'No summary available.')}_",
+            f"<i>{summary_safe}</i>",
             "",
         ]
 
         if anomalies:
-            lines.append("*Issues detected:*")
+            lines.append("<b>Issues detected:</b>")
             for a in anomalies:
                 if not isinstance(a, dict):
                     continue
-                sev_icon = "🔴" if a["severity"] == "HIGH" else "🟡" if a["severity"] == "MEDIUM" else "🔵"
-                lines.append(f"{sev_icon} {a['message']}")
+                sev_icon = "🔴" if a.get("severity") == "HIGH" else "🟡" if a.get("severity") == "MEDIUM" else "🔵"
+                msg_safe = html.escape(str(a.get("message", "")))
+                lines.append(f"{sev_icon} {msg_safe}")
 
         ai = risk_result.get("ai_explanation")
         if ai:
+            ai_summary = html.escape(str(ai.get("summary", "")))
+            ai_action = html.escape(str(ai.get("action", "")))
+            ai_positive = html.escape(str(ai.get("positive", "")))
             lines += [
                 "",
-                f"AI Assessment: {ai.get('summary', '')}",
-                f"Recommended action: {ai.get('action', '')}",
-                f"Today's positive: {ai.get('positive', '')}",
+                f"AI Assessment: {ai_summary}",
+                f"Recommended action: {ai_action}",
+                f"Today's positive: {ai_positive}",
             ]
         else:
             lines += [
@@ -105,8 +117,7 @@ class AlertSystem:
             ]
 
         message = "\n".join(lines)
-
-        logger.info("ALERT TRIGGERED: %s", message.replace("*", "").replace("_", ""))
+        logger.info("ALERT TRIGGERED: %s", re.sub(r"<[^>]+>", "", message))
 
         # Send to Telegram if configured
         if self.token and self.chat_id:
@@ -117,7 +128,7 @@ class AlertSystem:
         payload = {
             "chat_id":    self.chat_id,
             "text":       message,
-            "parse_mode": "Markdown",
+            "parse_mode": "HTML",
         }
         try:
             resp = requests.post(url, json=payload, timeout=10)
@@ -130,18 +141,20 @@ class AlertSystem:
 
     def send_daily_summary(self, risk_result: dict, person_name: str = "Your family member"):
         """Send an end-of-day summary regardless of risk level."""
-        level  = risk_result.get("risk_level", "UNKNOWN")
-        score  = risk_result.get("risk_score", 0)
-        emoji  = RISK_EMOJI.get(level, "❓")
+        level = risk_result.get("risk_level", "UNKNOWN")
+        score = risk_result.get("risk_score", 0)
+        emoji = RISK_EMOJI.get(level, "❓")
+        person_name_safe = html.escape(str(person_name))
+        summary_safe = html.escape(str(risk_result.get("summary", "")))
 
         message = (
-            f"{emoji} *CareWatch Daily Summary — {person_name}*\n"
+            f"{emoji} <b>CareWatch Daily Summary — {person_name_safe}</b>\n"
             f"📅 {datetime.now().strftime('%A, %d %b %Y')}\n\n"
-            f"Overall day: *{level}* (score: {score}/100)\n"
-            f"_{risk_result.get('summary', '')}_\n\n"
+            f"Overall day: <b>{level}</b> (score: {score}/100)\n"
+            f"<i>{summary_safe}</i>\n\n"
             f"Have a good night! 🌙"
         )
 
-        logger.info("Daily summary: %s", message.replace("*", "").replace("_", ""))
+        logger.info("Daily summary: %s", re.sub(r"<[^>]+>", "", message))
         if self.token and self.chat_id:
             self._send_telegram(message)

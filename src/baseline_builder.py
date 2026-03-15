@@ -8,7 +8,7 @@ For each activity, it learns:
 - How long it typically lasts (mean duration)
 - How many times per day it occurs
 
-Saves the profile as a JSON file per person.
+Saves the profile to the baselines table in SQLite.
 
 USAGE:
     from src.baseline_builder import BaselineBuilder
@@ -17,26 +17,36 @@ USAGE:
 """
 
 import json
-import os
+import sqlite3
 import numpy as np
 from collections import defaultdict
 from datetime import datetime, timedelta
 from src.logger import ActivityLogger
 
-BASELINE_DIR = "data/baselines"
-ACTIVITIES   = ["sitting", "eating", "walking", "pill_taking", "lying_down"]
+ACTIVITIES = ["sitting", "eating", "walking", "pill_taking", "lying_down"]
 
 
 class BaselineBuilder:
     def __init__(self, logger: ActivityLogger = None):
         self.logger = logger or ActivityLogger()
-        os.makedirs(BASELINE_DIR, exist_ok=True)
+        self._ensure_baselines_table()
+
+    def _ensure_baselines_table(self):
+        with sqlite3.connect(self.logger.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS baselines (
+                    person_id  TEXT PRIMARY KEY,
+                    built_at   TEXT NOT NULL,
+                    profile    TEXT NOT NULL
+                )
+            """)
+            conn.commit()
 
     def build_baseline(self, person_id: str = "resident") -> dict:
         """
         Read the last 7 days of logs for person_id.
         Compute per-activity statistics.
-        Save to data/baselines/{person_id}.json
+        Save to baselines table in SQLite
         """
         logs = self.logger.get_last_n_days(n=7, person_id=person_id)
         if not logs:
@@ -91,17 +101,21 @@ class BaselineBuilder:
             }
 
         # Save
-        path = os.path.join(BASELINE_DIR, f"{person_id}.json")
-        with open(path, "w") as f:
-            json.dump(profile, f, indent=2)
+        with sqlite3.connect(self.logger.db_path) as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO baselines (person_id, built_at, profile)
+                VALUES (?, ?, ?)
+            """, (person_id, profile["built_at"], json.dumps(profile)))
+            conn.commit()
 
-        print(f"✅ Baseline saved to {path}")
+        print(f"✅ Baseline saved to DB for {person_id}")
         print(f"   Built from {len(by_date)} days of data")
         return profile
 
     def load_baseline(self, person_id: str = "resident") -> dict | None:
-        path = os.path.join(BASELINE_DIR, f"{person_id}.json")
-        if not os.path.exists(path):
-            return None
-        with open(path) as f:
-            return json.load(f)
+        with sqlite3.connect(self.logger.db_path) as conn:
+            row = conn.execute(
+                "SELECT profile FROM baselines WHERE person_id = ?",
+                (person_id,)
+            ).fetchone()
+        return json.loads(row[0]) if row else None

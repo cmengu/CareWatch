@@ -18,9 +18,10 @@ USAGE:
 
 import json
 from datetime import datetime
+from src.alert_store import AlertStore
 from src.logger import ActivityLogger
 from src.baseline_builder import BaselineBuilder
-from src.models import RiskResult
+from src.models import AnomalyItem, RiskResult
 
 # How many standard deviations off = anomaly
 Z_THRESHOLD = 2.0
@@ -37,17 +38,37 @@ ACTIVITY_WEIGHTS = {
 
 class DeviationDetector:
     def __init__(self):
-        self.logger  = ActivityLogger()
-        self.builder = BaselineBuilder(self.logger)
+        self.logger      = ActivityLogger()
+        self.builder     = BaselineBuilder(self.logger)
+        self.alert_store = AlertStore()
 
     def check(self, person_id: str = "resident") -> RiskResult:
         """
         Compare today's activity log vs stored baseline.
         Returns dict with: risk_score, risk_level, anomalies, summary
         """
+        # Persistent alert check — RED stays RED until caregiver clears it.
+        # Must come before get_last_activity so a cleared fall doesn't re-trigger.
+        active = self.alert_store.has_active_alert(person_id)
+        if active:
+            return RiskResult(
+                risk_score=100,
+                risk_level="RED",
+                anomalies=[AnomalyItem(
+                    activity="persistent_alert",
+                    type="UNCLEARED",
+                    message=(f"Uncleared alert since {active['triggered_at']}. "
+                             f"Send /clear {person_id} to acknowledge."),
+                    severity="HIGH",
+                )],
+                summary=f"Uncleared RED alert since {active['triggered_at']}.",
+                checked_at=datetime.now().isoformat(),
+            )
+
         # Immediate override — fallen is always critical
         last = self.logger.get_last_activity(person_id)
         if last and last["activity"] == "fallen" and last["confidence"] > 0.85:
+            self.alert_store.raise_alert(person_id, "FALLEN")
             return RiskResult(
                 risk_score=100,
                 risk_level="RED",

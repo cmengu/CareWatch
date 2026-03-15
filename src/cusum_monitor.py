@@ -2,7 +2,8 @@
 cusum_monitor.py
 ================
 ResidentCUSUMMonitor — manages four CUSUMDetector instances per resident.
-Fitted from data/baselines/{person_id}.json, reads activity_log for observations.
+Fitted from baselines table in data/carewatch.db via BaselineBuilder.load_baseline(),
+reads activity_log for observations.
 Signals: movement_frequency, pill_taking_timing, eating_timing, inactivity_duration.
 
 USAGE:
@@ -48,7 +49,7 @@ class CUSUMCheckResult:
 class ResidentCUSUMMonitor:
     """
     Manages four CUSUMDetector instances for one resident.
-    Fitted from data/baselines/{person_id}.json on first check().
+    Fitted from baselines table via BaselineBuilder.load_baseline() on first check().
     CUSUM state is in-memory — resets on process restart.
     """
 

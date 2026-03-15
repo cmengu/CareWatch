@@ -134,7 +134,7 @@ JSON only. No markdown. No extra text. No explanation outside the JSON."""
             temperature=0.3,
         )
         raw = response.choices[0].message.content.strip()
-        print("DEBUG RAW BEFORE CLEAN:", repr(raw)) 
+        logger.debug("LLM raw response: %r", raw) 
         # Strip markdown code fences if model wraps response anyway
         if raw.startswith("```"):
             raw = raw.split("```")[1]
