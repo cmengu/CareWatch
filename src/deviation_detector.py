@@ -13,7 +13,7 @@ USAGE:
     from src.deviation_detector import DeviationDetector
     detector = DeviationDetector()
     result = detector.check("mrs_tan")
-    print(result["risk_score"], result["anomalies"])
+    # result.risk_score, result.anomalies
 """
 
 import json
@@ -22,6 +22,8 @@ from src.alert_store import AlertStore
 from src.logger import ActivityLogger
 from src.baseline_builder import BaselineBuilder
 from src.models import AnomalyItem, RiskResult
+
+DB_PATH = "data/carewatch.db"
 
 # How many standard deviations off = anomaly
 Z_THRESHOLD = 2.0
@@ -37,12 +39,18 @@ ACTIVITY_WEIGHTS = {
 
 
 class DeviationDetector:
-    def __init__(self):
-        self.logger      = ActivityLogger()
+    def __init__(self, db_path: str | None = None):
+        path = db_path if db_path is not None else DB_PATH
+        self.logger      = ActivityLogger(db_path=path)
         self.builder     = BaselineBuilder(self.logger)
-        self.alert_store = AlertStore()
+        self.alert_store = AlertStore(db_path=path)
 
-    def check(self, person_id: str = "resident") -> RiskResult:
+    def check(
+        self,
+        person_id: str = "resident",
+        _current_hour: float | None = None,
+        _today: str | None = None,
+    ) -> RiskResult:
         """
         Compare today's activity log vs stored baseline.
         Returns dict with: risk_score, risk_level, anomalies, summary
@@ -80,8 +88,11 @@ class DeviationDetector:
             )
 
         baseline = self.builder.load_baseline(person_id)
-        today_logs = self.logger.get_today(person_id)
-        current_hour = datetime.now().hour + datetime.now().minute / 60.0
+        today_logs = self.logger.get_today(person_id, _today=_today)
+        current_hour = (
+            _current_hour if _current_hour is not None
+            else datetime.now().hour + datetime.now().minute / 60.0
+        )
 
         anomalies = []
         risk_points = 0

@@ -17,11 +17,14 @@ USAGE:
 """
 
 import json
+import logging
 import sqlite3
 import numpy as np
 from collections import defaultdict
 from datetime import datetime, timedelta
 from src.logger import ActivityLogger
+
+logger = logging.getLogger(__name__)
 
 ACTIVITIES = ["sitting", "eating", "walking", "pill_taking", "lying_down"]
 
@@ -50,7 +53,7 @@ class BaselineBuilder:
         """
         logs = self.logger.get_last_n_days(n=7, person_id=person_id)
         if not logs:
-            print(f"⚠️  No logs found for {person_id}")
+            logger.warning("No logs found for %s — baseline not built", person_id)
             return {}
 
         # Group logs by activity
@@ -108,8 +111,7 @@ class BaselineBuilder:
             """, (person_id, profile["built_at"], json.dumps(profile)))
             conn.commit()
 
-        print(f"✅ Baseline saved to DB for {person_id}")
-        print(f"   Built from {len(by_date)} days of data")
+        logger.info("Baseline saved for %s (%d days of data)", person_id, len(by_date))
         return profile
 
     def load_baseline(self, person_id: str = "resident") -> dict | None:

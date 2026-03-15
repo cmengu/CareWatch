@@ -191,7 +191,7 @@ JSON only. No markdown. No extra text. No explanation outside the JSON."""
                         retry_parsed["concern_level"] = _LEVEL_TO_CONCERN.get(risk_level, "watch")
                     logger.info("Retry succeeded — returning corrected explanation")
                     return retry_parsed
-            except Exception as e:
+            except Exception as e:  # narrow to json.JSONDecodeError, groq.GroqError before production
                 logger.warning("Retry failed: %s — returning original explanation", e)
 
         return parsed
@@ -259,8 +259,8 @@ Explanation to check:
 - concern_level: {explanation.get("concern_level", "")}
 - action: {explanation.get("action", "")}
 
-A FAIL means: concern_level contradicts the risk score, or the summary ignores critical anomalies.
-A PASS means: the explanation is a reasonable, consistent reflection of the data.
+A FAIL means ANY of these: (1) concern_level contradicts the risk score (urgent for score<20 or normal for score>70), (2) the summary says 'no issues' or 'no detected issues' when anomalies list is non-empty, (3) the summary does not mention the most severe anomaly when severity=HIGH is present.
+A PASS means: concern_level is consistent with risk data AND summary acknowledges the primary anomaly if one exists.
 
 JSON only. No markdown. No extra text."""
 
