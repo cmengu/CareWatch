@@ -36,6 +36,8 @@ def build_knowledge_base():
     with open(FACTS_PATH, "r") as f:
         for i, line in enumerate(f):
             line = line.strip()
+            if line.startswith("#"):
+                continue
             if line and ":" in line:
                 facts.append(line)
                 ids.append(f"fact_{i}")
