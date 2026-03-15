@@ -46,6 +46,26 @@ class AlertSuppressionLayer:
     def __init__(self, db_path: str | None = None):
         self.db_path = db_path if db_path is not None else _DEFAULT_DB_PATH
         self.alert_system = AlertSystem()
+        self._ensure_table()
+
+    def _ensure_table(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS alert_suppression (
+                    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                    resident_id        TEXT    NOT NULL,
+                    risk_level         TEXT    NOT NULL,
+                    prior_severity     TEXT,
+                    fired_at           TEXT    NOT NULL,
+                    suppressed         INTEGER NOT NULL DEFAULT 0,
+                    suppression_reason TEXT
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_suppression_lookup
+                ON alert_suppression (resident_id, risk_level, fired_at)
+            """)
+            conn.commit()
 
     def send(
         self,
