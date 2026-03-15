@@ -11,13 +11,13 @@ USAGE:
     result = monitor.check("resident")
 """
 
-import json
 import sqlite3
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
 
+from src.baseline_builder import BaselineBuilder
 from src.cusum_detector import CUSUMDetector, CUSUMResult
 
 logger = logging.getLogger(__name__)
@@ -54,11 +54,11 @@ class ResidentCUSUMMonitor:
 
     def __init__(
         self,
-        db_path:      str = "data/carewatch.db",
-        baseline_dir: str = "data/baselines",
+        db_path: str = "data/carewatch.db",
+        baseline_builder: BaselineBuilder | None = None,
     ):
-        self.db_path      = db_path
-        self.baseline_dir = baseline_dir
+        self.db_path = db_path
+        self.baseline_builder = baseline_builder or BaselineBuilder()
         # Detectors keyed by person_id then signal_name
         # Built lazily on first check() call for each person_id
         self._detectors: dict[str, dict[str, CUSUMDetector]] = {}
@@ -148,13 +148,10 @@ class ResidentCUSUMMonitor:
     # ── Private: detector construction ────────────────────────────────────
 
     def _build_detectors(self, person_id: str) -> None:
-        baseline_path = f"{self.baseline_dir}/{person_id}.json"
-        try:
-            with open(baseline_path) as f:
-                baseline = json.load(f)
-        except FileNotFoundError:
+        baseline = self.baseline_builder.load_baseline(person_id)
+        if baseline is None:
             raise FileNotFoundError(
-                f"ResidentCUSUMMonitor: baseline not found at {baseline_path}. "
+                f"ResidentCUSUMMonitor: baseline not found for {person_id}. "
                 f"Run BaselineBuilder.build_baseline('{person_id}') first."
             )
 
