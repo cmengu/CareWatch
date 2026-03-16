@@ -70,7 +70,14 @@ class CareWatchAgent:
         self.alerts   = AlertSuppressionLayer()
         self.audit    = AuditLogger()
 
-    def run(self, person_id: str = "resident", send_alert: bool = True) -> AgentResult:
+    def run(
+        self,
+        person_id: str = "resident",
+        send_alert: bool = True,
+        _current_hour: float | None = None,
+        _today: str | None = None,
+        _variant=None,
+    ) -> AgentResult:
         """
         Full agent loop:
           1. Compute risk score  — DeviationDetector.check() (unchanged logic)
@@ -100,9 +107,11 @@ class CareWatchAgent:
         """
         logger.info("CareWatch Agent running for: %s", person_id)
 
-        # Step 1 — existing risk logic, zero changes to deviation_detector.py
+        # Step 1 — existing risk logic (supports _current_hour for eval determinism)
         try:
-            risk_result = self.detector.check(person_id)
+            risk_result = self.detector.check(
+                person_id, _current_hour=_current_hour, _today=_today
+            )
             cusum_result = self.cusum_monitor.check(person_id)
             logger.info("CUSUM check: %s", cusum_result.summary)
         except Exception as e:
@@ -157,6 +166,7 @@ class CareWatchAgent:
             anomalies=anomalies,
             rag_context=rag_context,
             memory_context=memory_context,
+            _variant=_variant,
         )
         logger.info("LLM concern_level: %s", explanation.get("concern_level"))
 

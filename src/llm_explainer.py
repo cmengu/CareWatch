@@ -24,6 +24,8 @@ import logging
 import os
 from pathlib import Path
 
+from src.prompt_registry import PromptVariant, load_variant
+
 logger = logging.getLogger(__name__)
 
 # Load .env from repo root if present
@@ -58,6 +60,7 @@ def explain_risk(
     anomalies: list,
     rag_context: str = "",
     memory_context: str = "",
+    _variant: PromptVariant | None = None,
 ) -> dict:
     """
     Call Groq to explain a risk result in plain English for a family member.
@@ -87,43 +90,18 @@ def explain_risk(
         if memory_context else ""
     )
 
-    prompt = f"""You are CareWatch, a caring elderly monitoring assistant.
-A family member is checking on their loved one. Be warm, clear, and concise.
-Do not use markdown, asterisks, or underscores anywhere in your response.
+    # Load variant — default to A1C1 (production baseline)
+    variant = _variant if _variant is not None else load_variant("A1C1")
+    self_check_mode = variant.self_check_mode
 
-Return ONLY valid JSON with exactly these four keys:
-{{
-  "summary": "2 sentences explaining what happened today in plain English",
-  "concern_level": "normal or watch or urgent",
-  "action": "one specific thing the family should do right now",
-  "positive": "one positive observation about today"
-}}
-
-DECISION TABLE for concern_level — apply top-to-bottom, stop at first match:
-IF fall detected in anomalies                    → urgent
-IF any anomaly has severity=HIGH               → urgent
-IF all anomalies have severity=LOW              → watch (score is irrelevant)
-IF anomalies empty AND risk_score < 40         → normal
-IF anomalies empty AND risk_score >= 40        → watch (score is the signal)
-DEFAULT                                         → watch
-
-Examples you must match exactly:
-- risk_score=15, risk_level=RED, anomalies empty → normal
-- risk_score=75, risk_level=GREEN, anomalies empty → watch (high score overrides clean level)
-- risk_score=75, risk_level=RED, all LOW severity → watch
-- risk_score=90, risk_level=RED, all LOW severity → watch
-- risk_score=30, risk_level=GREEN, one HIGH severity → urgent
-- risk_score=50, risk_level=YELLOW, one HIGH + three LOW → urgent
-- risk_score=85, risk_level=UNKNOWN, one HIGH severity → urgent
-
-{memory_block}
-Data:
-- Person: {person_id}
-- Risk Score: {risk_score}/100
-- Risk Level: {risk_level}
-- Issues detected: {json.dumps(clean_anomalies)}{context_block}
-
-JSON only. No markdown. No extra text. No explanation outside the JSON."""
+    prompt = variant.prompt_text.format(
+        person_id=person_id,
+        risk_score=risk_score,
+        risk_level=risk_level,
+        anomalies_json=json.dumps(clean_anomalies),
+        context_block=context_block,
+        memory_block=memory_block,
+    )
 
     try:
         client = Groq(api_key=api_key)
@@ -161,38 +139,39 @@ JSON only. No markdown. No extra text. No explanation outside the JSON."""
         if parsed["concern_level"] not in ("normal", "watch", "urgent"):
             parsed["concern_level"] = _LEVEL_TO_CONCERN.get(risk_level, "watch")
 
-        # Self-check — does this explanation actually match the risk data?
-        check = _self_check(risk_score, risk_level, anomalies, parsed, api_key)
-        if not check["pass"]:
-            logger.info("Self-check failed (%s) — retrying once", check["reason"])
-            retry_prompt = prompt + f"\n\nPrevious attempt was rejected because: {check['reason']}. Correct this in your response."
-            try:
-                retry_response = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": retry_prompt}],
-                    max_tokens=300,
-                    temperature=0.3,
-                )
-                raw_retry = retry_response.choices[0].message.content.strip()
-                if raw_retry.startswith("```"):
-                    raw_retry = raw_retry.split("```")[1]
-                    if raw_retry.startswith("json"):
-                        raw_retry = raw_retry[4:]
-                    raw_retry = raw_retry.strip()
-                # Find the JSON object if model added prose around it
-                start = raw_retry.find("{")
-                end = raw_retry.rfind("}") + 1
-                if start != -1 and end > start:
-                    raw_retry = raw_retry[start:end]
-                retry_parsed = json.loads(raw_retry)
-                if {"summary", "concern_level", "action", "positive"}.issubset(retry_parsed.keys()):
-                    retry_parsed["concern_level"] = retry_parsed["concern_level"].lower().strip()
-                    if retry_parsed["concern_level"] not in ("normal", "watch", "urgent"):
-                        retry_parsed["concern_level"] = _LEVEL_TO_CONCERN.get(risk_level, "watch")
-                    logger.info("Retry succeeded — returning corrected explanation")
-                    return retry_parsed
-            except Exception as e:  # narrow to json.JSONDecodeError, groq.GroqError before production
-                logger.warning("Retry failed: %s — returning original explanation", e)
+        # Self-check gated by variant self_check_mode
+        if self_check_mode == "separate":
+            check = _self_check(risk_score, risk_level, anomalies, parsed, api_key)
+            if not check["pass"]:
+                logger.info("Self-check failed (%s) — retrying once", check["reason"])
+                retry_prompt = prompt + f"\n\nPrevious attempt was rejected because: {check['reason']}. Correct this in your response."
+                try:
+                    retry_response = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": retry_prompt}],
+                        max_tokens=300,
+                        temperature=0.3,
+                    )
+                    raw_retry = retry_response.choices[0].message.content.strip()
+                    if raw_retry.startswith("```"):
+                        raw_retry = raw_retry.split("```")[1]
+                        if raw_retry.startswith("json"):
+                            raw_retry = raw_retry[4:]
+                        raw_retry = raw_retry.strip()
+                    start = raw_retry.find("{")
+                    end = raw_retry.rfind("}") + 1
+                    if start != -1 and end > start:
+                        raw_retry = raw_retry[start:end]
+                    retry_parsed = json.loads(raw_retry)
+                    if {"summary", "concern_level", "action", "positive"}.issubset(retry_parsed.keys()):
+                        retry_parsed["concern_level"] = retry_parsed["concern_level"].lower().strip()
+                        if retry_parsed["concern_level"] not in ("normal", "watch", "urgent"):
+                            retry_parsed["concern_level"] = _LEVEL_TO_CONCERN.get(risk_level, "watch")
+                        logger.info("Retry succeeded — returning corrected explanation")
+                        return retry_parsed
+                except Exception as e:  # narrow to json.JSONDecodeError, groq.GroqError before production
+                    logger.warning("Retry failed: %s — returning original explanation", e)
+        # "embedded" and "none" modes: no separate self-check call — return parsed directly
 
         return parsed
 
