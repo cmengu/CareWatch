@@ -229,6 +229,9 @@ def _parse_args() -> argparse.Namespace:
                    help="Dry run — skip Telegram alerts")
     p.add_argument("--skip-chroma", action="store_true",
                    help="Skip ChromaDB bootstrap check")
+    p.add_argument("--agent", choices=["custom", "langgraph", "langchain"],
+                   default="custom",
+                   help="Which agent backend to use (default: custom)")
     return p.parse_args()
 
 
@@ -279,14 +282,23 @@ def main() -> int:
         )
         logger.info("Batch mode: %d residents", len(targets))
 
-    # Step 2 — Import agent
+    # Step 2 — Import agent (selected via --agent flag)
     try:
-        from src.agent import CareWatchAgent
+        if args.agent == "langgraph":
+            from src.orchestrator import CareWatchOrchestrator
+            agent = CareWatchOrchestrator()
+            logger.info("Using LangGraph multi-agent (CareWatchOrchestrator)")
+        elif args.agent == "langchain":
+            from src.langchain_agent import CareWatchLangChainAgent
+            agent = CareWatchLangChainAgent()
+            logger.info("Using LangChain tool-calling agent")
+        else:
+            from src.agent import CareWatchAgent
+            agent = CareWatchAgent()
+            logger.info("Using custom CareWatchAgent")
     except Exception as e:
-        logger.error("Failed to import CareWatchAgent: %s", e)
+        logger.error("Failed to import agent (--agent=%s): %s", args.agent, e)
         return 1
-
-    agent      = CareWatchAgent()
     send_alert = not args.no_alert
 
     if args.no_alert:

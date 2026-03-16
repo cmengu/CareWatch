@@ -37,6 +37,8 @@ class EvalScenario:
     tolerance: str  # EXACT | LEVEL_ONLY
     active_alert: Optional[dict] = None
     notes: str = ""
+    _current_hour: Optional[float] = 23.0
+    _today: str = "2026-03-08"
 
 
 @dataclass

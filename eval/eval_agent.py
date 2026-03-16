@@ -57,11 +57,14 @@ def run_scenario(scenario: EvalScenario, agent, no_llm: bool = False) -> EvalRes
         else f"eval_{scenario.scenario_id.lower()}"
     )
 
+    current_hour = getattr(scenario, "_current_hour", None) or EVAL_CURRENT_HOUR
+    today = getattr(scenario, "_today", EVAL_TODAY)
+
     t0 = time.perf_counter() * 1000
     try:
-        if no_llm:
+        if no_llm and hasattr(agent, "detector"):
             risk = agent.detector.check(
-                pid, _current_hour=EVAL_CURRENT_HOUR, _today=EVAL_TODAY
+                pid, _current_hour=current_hour, _today=today
             )
             latency_ms = time.perf_counter() * 1000 - t0
             actual_level = risk.risk_level
@@ -71,8 +74,8 @@ def run_scenario(scenario: EvalScenario, agent, no_llm: bool = False) -> EvalRes
             result = agent.run(
                 pid,
                 send_alert=False,
-                _current_hour=EVAL_CURRENT_HOUR,
-                _today=EVAL_TODAY,
+                _current_hour=current_hour,
+                _today=today,
             )
             latency_ms = time.perf_counter() * 1000 - t0
             actual_level = result.risk_level
@@ -256,6 +259,8 @@ def main() -> int:
             return 1
 
     from src.agent import CareWatchAgent
+    from src.orchestrator import CareWatchOrchestrator
+    from src.langchain_agent import CareWatchLangChainAgent
     from src.deviation_detector import DeviationDetector
     from src.audit_logger import AuditLogger
     from src.suppression import AlertSuppressionLayer
@@ -264,50 +269,103 @@ def main() -> int:
     from src.baseline_builder import BaselineBuilder
     from src.cusum_monitor import ResidentCUSUMMonitor
 
-    test_logger = ActivityLogger(db_path=TEST_DB_PATH)
-    test_builder = BaselineBuilder(logger=test_logger)
+    def _make_custom_agent():
+        test_logger = ActivityLogger(db_path=TEST_DB_PATH)
+        test_builder = BaselineBuilder(logger=test_logger)
+        det = DeviationDetector(db_path=TEST_DB_PATH)
+        cusum = ResidentCUSUMMonitor()
+        audit = AuditLogger()
+        agent = CareWatchAgent()
+        agent.detector = det
+        agent.cusum_monitor = cusum
+        agent.alerts = AlertSuppressionLayer(db_path=TEST_DB_PATH)
+        agent.audit = audit
+        return agent
 
-    # DeviationDetector: try db_path constructor first, fall back to post-init patch
-    try:
-        test_detector = DeviationDetector(db_path=TEST_DB_PATH)
-    except TypeError:
-        test_detector = DeviationDetector()
-        test_detector.logger = test_logger
-        test_detector.builder = test_builder
-        test_detector.alert_store = AlertStore(db_path=TEST_DB_PATH)
+    AGENTS = [
+        ("custom",    _make_custom_agent()),
+        ("langgraph", CareWatchOrchestrator(db_path=TEST_DB_PATH)),
+        ("langchain", CareWatchLangChainAgent(db_path=TEST_DB_PATH)),
+    ]
 
-    # ResidentCUSUMMonitor: db_path accepted; baseline_builder may not be
-    try:
-        agent_cusum = ResidentCUSUMMonitor(
-            db_path=TEST_DB_PATH,
-            baseline_builder=test_builder,
-        )
-    except TypeError:
-        agent_cusum = ResidentCUSUMMonitor(db_path=TEST_DB_PATH)
+    # Run each agent independently through all scenarios
+    all_agent_results = {}
+    comparison_rows = []
 
-    agent = CareWatchAgent()
-    agent.detector = test_detector
-    agent.cusum_monitor = agent_cusum
-    agent.alerts = AlertSuppressionLayer(db_path=TEST_DB_PATH)
-    agent.audit = AuditLogger(db_path=TEST_DB_PATH)
+    for agent_name, agent in AGENTS:
+        tp = tn = fp = fn_count = 0
+        latencies = []
+        llm_aligned = 0
+        results = []
 
-    results, total = [], len(scenarios)
-    for i, sc in enumerate(scenarios, 1):
+        total = len(scenarios)
+        for i, sc in enumerate(scenarios, 1):
+            print(
+                f"  [{agent_name}] {sc.scenario_id} ({i}/{total}) {sc.description[:50]}...",
+                end="\r",
+            )
+            results.append(run_scenario(sc, agent, no_llm=args.no_llm))
+
+            result = results[-1]
+            latencies.append(result.latency_ms)
+
+            predicted = result.actual_level
+            expected  = sc.expected_level
+
+            if expected == "RED" and predicted == "RED":       tp += 1
+            elif expected == "RED" and predicted != "RED":     fn_count += 1
+            elif expected != "RED" and predicted == "RED":     fp += 1
+            else:                                              tn += 1
+
+            if sc.tolerance == "LEVEL_ONLY":
+                llm_aligned += 1
+            else:
+                if result.concern_match:
+                    llm_aligned += 1
+
+        print(" " * 80, end="\r")
+
+        n = len(scenarios)
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall    = tp / (tp + fn_count) if (tp + fn_count) > 0 else 0.0
+        f1        = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        fnr       = fn_count / (fn_count + tp) if (fn_count + tp) > 0 else 0.0
+        sorted_lats = sorted(latencies)
+        p50       = sorted_lats[n // 2] if n else 0
+        p95       = sorted_lats[int(n * 0.95)] if n else 0
+
+        comparison_rows.append({
+            "agent":         agent_name,
+            "f1":            round(f1, 3),
+            "fnr":           round(fnr, 3),
+            "llm_alignment": round(llm_aligned / n, 3) if n else 0,
+            "p50_ms":        round(p50),
+            "p95_ms":        round(p95),
+        })
+
+        all_agent_results[agent_name] = results
+
+        metrics = compute_metrics(results)
+        print(f"\n  --- {agent_name} ---")
+        print_results(results, metrics)
+        out = save_results(results, metrics)
+        print(f"  Results ({agent_name}): {out}")
+
+    # Print comparison table
+    print("\n=== Agent Comparison Table ===")
+    print(f"{'Agent':<12} {'F1':>6} {'FNR':>6} {'LLM%':>6} {'p50ms':>7} {'p95ms':>7}")
+    print("-" * 50)
+    for row in comparison_rows:
         print(
-            f"  {sc.scenario_id} ({i}/{total}) {sc.description[:50]}...",
-            end="\r",
+            f"{row['agent']:<12} {row['f1']:>6.3f} {row['fnr']:>6.3f} "
+            f"{row['llm_alignment']:>6.1%} {row['p50_ms']:>7} {row['p95_ms']:>7}"
         )
-        results.append(run_scenario(sc, agent, no_llm=args.no_llm))
-    print(" " * 80, end="\r")
 
-    metrics = compute_metrics(results)
-    print_results(results, metrics)
-    out = save_results(results, metrics)
-    print(f"  Results: {out}")
-
+    # Safety check on custom agent (primary)
+    custom_results = all_agent_results.get("custom", [])
     fn_fail = [
         r
-        for r in results
+        for r in custom_results
         if not r.passed
         and next(
             (s.category for s in ALL_SCENARIOS if s.scenario_id == r.scenario_id),

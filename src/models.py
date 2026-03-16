@@ -14,6 +14,7 @@ Models (dependency order):
 """
 
 from __future__ import annotations
+import dataclasses
 from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 
@@ -60,3 +61,30 @@ class AgentResult(RiskResult):
     error:            Optional[str] = None
     confidence:       str           = Field("high", pattern="^(high|low)$")
     cusum_result:     Optional[dict] = None
+
+
+@dataclasses.dataclass
+class SpecialistResult:
+    """
+    Output contract for all specialist agents (FallAgent, MedAgent, RoutineAgent).
+    SummaryAgent receives a list of these and synthesises into a single AgentResult.
+
+    Fields:
+        agent_name:     "FallAgent" | "MedAgent" | "RoutineAgent"
+        concern_level:  "normal" | "watch" | "urgent"
+        summary:        one-sentence family-facing finding
+        action:         one-sentence recommended action
+        rag_used:       True if RAG context was retrieved for this specialist
+        anomalies:      the subset of anomalies this specialist handled
+        skipped:        True if this specialist was not routed to (present but inactive)
+    """
+    agent_name:    str
+    concern_level: str
+    summary:       str
+    action:        str
+    rag_used:      bool = False
+    anomalies:     list = dataclasses.field(default_factory=list)
+    skipped:       bool = False
+
+    def to_dict(self) -> dict:
+        return dataclasses.asdict(self)

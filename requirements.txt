@@ -69,3 +69,7 @@ urllib3==2.6.3
 chromadb==1.5.5
 groq==1.1.1
 uvicorn==0.41.0
+langgraph==0.2.28
+langchain==0.3.7
+langchain-groq==0.2.1
+langsmith==0.1.147
