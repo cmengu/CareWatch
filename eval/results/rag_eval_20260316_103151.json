@@ -1,0 +1,900 @@
+{
+  "run_at": "2026-03-16T10:31:51.320754",
+  "k_values": [
+    1,
+    2,
+    3
+  ],
+  "metrics": {
+    "mrr": 0.96,
+    "per_k": {
+      "1": {
+        "precision_at_k": 0.92,
+        "recall_at_k": 0.92
+      },
+      "2": {
+        "precision_at_k": 0.54,
+        "recall_at_k": 1.08
+      },
+      "3": {
+        "precision_at_k": 0.36,
+        "recall_at_k": 1.08
+      }
+    },
+    "zero_hit_queries": [],
+    "total_queries": 25
+  },
+  "results": [
+    {
+      "query_id": "Q01",
+      "query": "fall detected elderly resident emergency response",
+      "relevant_keywords": [
+        "fall",
+        "emergency",
+        "995"
+      ],
+      "retrieved_docs": [
+        "fallen_assessment: Any fall in elderly patient requires immediate medical assessment even if patient appears uninjured.",
+        "fall_response_immediate: If a fall is detected, do not attempt to move the resident. Call emergency services (995 in Singapore) if the resident is unresponsive, bleeding, or complaining of head or hip pain.",
+        "fall_response_conscious: If resident is conscious and alert after a fall, keep them calm and warm. Do not leave them alone. Check for pain in hip, wrist, or head before assisting them to stand."
+      ],
+      "relevance_mask": [
+        false,
+        true,
+        false
+      ],
+      "first_relevant_rank": 2,
+      "reciprocal_rank": 0.5,
+      "per_k": {
+        "1": {
+          "precision": 0.0,
+          "recall": 0.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q02",
+      "query": "fall conscious resident what to do",
+      "relevant_keywords": [
+        "conscious",
+        "alert",
+        "fall"
+      ],
+      "retrieved_docs": [
+        "fall_response_conscious: If resident is conscious and alert after a fall, keep them calm and warm. Do not leave them alone. Check for pain in hip, wrist, or head before assisting them to stand.",
+        "fall_response_immediate: If a fall is detected, do not attempt to move the resident. Call emergency services (995 in Singapore) if the resident is unresponsive, bleeding, or complaining of head or hip pain.",
+        "fallen_assessment: Any fall in elderly patient requires immediate medical assessment even if patient appears uninjured."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q03",
+      "query": "hip fracture signs after fall elderly",
+      "relevant_keywords": [
+        "hip",
+        "fracture",
+        "bear weight"
+      ],
+      "retrieved_docs": [
+        "fall_risk_hip_fracture: Hip fracture is the most dangerous fall complication in elderly patients. Risk increases significantly after age 75. Signs include inability to bear weight, shortened or rotated leg, severe groin pain.",
+        "fallen_assessment: Any fall in elderly patient requires immediate medical assessment even if patient appears uninjured.",
+        "fall_response_conscious: If resident is conscious and alert after a fall, keep them calm and warm. Do not leave them alone. Check for pain in hip, wrist, or head before assisting them to stand."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q04",
+      "query": "head injury after fall symptoms to watch",
+      "relevant_keywords": [
+        "head",
+        "confusion",
+        "vomiting"
+      ],
+      "retrieved_docs": [
+        "fall_risk_head_injury: Head injury after a fall can be silent. Watch for confusion, vomiting, unequal pupils, or drowsiness in the 24 hours following any fall. Seek immediate medical attention if observed.",
+        "fall_response_conscious: If resident is conscious and alert after a fall, keep them calm and warm. Do not leave them alone. Check for pain in hip, wrist, or head before assisting them to stand.",
+        "fallen_assessment: Any fall in elderly patient requires immediate medical assessment even if patient appears uninjured."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q05",
+      "query": "fall monitoring frequency after event",
+      "relevant_keywords": [
+        "30 minutes",
+        "4 hours",
+        "fall"
+      ],
+      "retrieved_docs": [
+        "fall_post_event_monitoring: After a confirmed fall, increase monitoring frequency to every 30 minutes for the first 4 hours. Document time, location, and activity at time of fall.",
+        "general_inactivity: Inactivity exceeding 4 hours during waking hours 7am to 9pm is a fall risk indicator in elderly patients.",
+        "fall_detection_confidence: A fall classification with confidence above 0.85 is considered a confirmed fall event. Confidence 0.70 to 0.85 is a probable fall and warrants visual confirmation."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q06",
+      "query": "warfarin missed dose stroke risk",
+      "relevant_keywords": [
+        "warfarin",
+        "stroke"
+      ],
+      "retrieved_docs": [
+        "warfarin: Blood thinner. Missing doses causes stroke risk. Must be taken at the same time daily. Interaction with aspirin increases bleeding risk.",
+        "pill_taking_interaction_warfarin_aspirin: Warfarin combined with aspirin significantly increases bleeding risk. Any fall event in a resident on anticoagulants should be treated as HIGH severity regardless of apparent injury.",
+        "aspirin: Daily low-dose aspirin for heart patients. Do not combine with warfarin without doctor approval."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q07",
+      "query": "warfarin aspirin interaction bleeding",
+      "relevant_keywords": [
+        "warfarin",
+        "aspirin",
+        "bleeding"
+      ],
+      "retrieved_docs": [
+        "pill_taking_interaction_warfarin_aspirin: Warfarin combined with aspirin significantly increases bleeding risk. Any fall event in a resident on anticoagulants should be treated as HIGH severity regardless of apparent injury.",
+        "warfarin: Blood thinner. Missing doses causes stroke risk. Must be taken at the same time daily. Interaction with aspirin increases bleeding risk.",
+        "aspirin: Daily low-dose aspirin for heart patients. Do not combine with warfarin without doctor approval."
+      ],
+      "relevance_mask": [
+        true,
+        true,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 1.0,
+          "recall": 2.0
+        },
+        "3": {
+          "precision": 0.667,
+          "recall": 2.0
+        }
+      }
+    },
+    {
+      "query_id": "Q08",
+      "query": "missed medication morning window elderly",
+      "relevant_keywords": [
+        "morning",
+        "pill",
+        "10am"
+      ],
+      "retrieved_docs": [
+        "pill_taking_morning_window: Most critical medications for elderly patients are prescribed in the morning 7 to 9am. If pill_taking activity is absent after 10am, treat as a missed dose event.",
+        "general_missed_doses: Elderly patients missing more than 2 doses of any critical medication should be flagged for family follow-up.",
+        "pill_taking_adherence: Medication non-adherence in elderly patients is associated with significant preventable hospitalisation. Monitoring pill-taking activity is among the highest-priority functions of CareWatch."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q09",
+      "query": "anticoagulant timing critical dose late",
+      "relevant_keywords": [
+        "anticoagulants",
+        "2 hours",
+        "caregiver"
+      ],
+      "retrieved_docs": [
+        "pill_taking_timing_critical: For anticoagulants, antiepileptics, and Parkinson medications, timing is critical. Doses more than 2 hours late require immediate caregiver notification.",
+        "pill_taking_missed_dose: A missed medication dose should be flagged to the caregiver within 1 hour of the expected administration window. Do not double-dose without consulting a pharmacist or doctor.",
+        "pill_taking_interaction_warfarin_aspirin: Warfarin combined with aspirin significantly increases bleeding risk. Any fall event in a resident on anticoagulants should be treated as HIGH severity regardless of apparent injury."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q10",
+      "query": "diuretic fall risk bathroom night",
+      "relevant_keywords": [
+        "diuretic",
+        "urination",
+        "fall"
+      ],
+      "retrieved_docs": [
+        "pill_taking_interaction_diuretic_fall: Diuretics increase urination frequency, causing residents to rush to the bathroom, elevating fall risk especially at night. Night-time walking combined with diuretic use warrants close monitoring.",
+        "fall_risk_medication: Medications that increase fall risk include sedatives, antihypertensives, diuretics, antidepressants, and antipsychotics. A pharmacist review is recommended after any fall event.",
+        "walking_night_fall_risk: Walking activity at night carries significantly higher fall risk than daytime walking due to reduced visibility, disorientation, and lower muscle readiness."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q11",
+      "query": "sedative benzodiazepine balance fall risk",
+      "relevant_keywords": [
+        "benzodiazepine",
+        "balance",
+        "fall"
+      ],
+      "retrieved_docs": [
+        "pill_taking_interaction_sedative_fall: Benzodiazepines and sedating antihistamines significantly impair balance in elderly patients. Walking or standing within 2 hours of sedative administration should be monitored.",
+        "fall_risk_medication: Medications that increase fall risk include sedatives, antihypertensives, diuretics, antidepressants, and antipsychotics. A pharmacist review is recommended after any fall event.",
+        "medication_review_after_fall: After any fall, conduct a medication review to identify drugs that may have contributed. Consider deprescribing or adjusting doses of sedatives, benzodiazepines, or antihypertensives."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q12",
+      "query": "metformin diabetic missed dose hyperglycemia",
+      "relevant_keywords": [
+        "metformin",
+        "hyperglycemia"
+      ],
+      "retrieved_docs": [
+        "metformin: Take with food. Missing a dose for a diabetic elderly patient increases risk of hyperglycemia. Critical to take consistently.",
+        "pill_taking_missed_dose: A missed medication dose should be flagged to the caregiver within 1 hour of the expected administration window. Do not double-dose without consulting a pharmacist or doctor.",
+        "eating_hypoglycaemia_risk: Residents on insulin or sulfonylureas who miss meals are at serious risk of hypoglycaemia. Symptoms include confusion, sweating, shakiness, and loss of consciousness. Treat as medical emergency."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q13",
+      "query": "missed meal insulin hypoglycemia risk",
+      "relevant_keywords": [
+        "hypoglycaemia",
+        "insulin",
+        "emergency"
+      ],
+      "retrieved_docs": [
+        "eating_hypoglycaemia_risk: Residents on insulin or sulfonylureas who miss meals are at serious risk of hypoglycaemia. Symptoms include confusion, sweating, shakiness, and loss of consciousness. Treat as medical emergency.",
+        "eating_missed_meal: A missed meal should be flagged if eating activity is absent more than 2 hours past the resident usual mealtime. Skipping meals contributes to malnutrition, hypoglycaemia, and medication side effects.",
+        "eating_timing_diabetic: For diabetic residents, meal timing is as important as meal content. Delays of more than 1 hour from usual mealtime combined with insulin doses can cause dangerous blood sugar fluctuations."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q14",
+      "query": "diabetic resident meal timing insulin",
+      "relevant_keywords": [
+        "diabetic",
+        "meal",
+        "blood sugar"
+      ],
+      "retrieved_docs": [
+        "eating_timing_diabetic: For diabetic residents, meal timing is as important as meal content. Delays of more than 1 hour from usual mealtime combined with insulin doses can cause dangerous blood sugar fluctuations.",
+        "metformin: Take with food. Missing a dose for a diabetic elderly patient increases risk of hyperglycemia. Critical to take consistently.",
+        "eating_hypoglycaemia_risk: Residents on insulin or sulfonylureas who miss meals are at serious risk of hypoglycaemia. Symptoms include confusion, sweating, shakiness, and loss of consciousness. Treat as medical emergency."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q15",
+      "query": "appetite loss elderly depression infection",
+      "relevant_keywords": [
+        "appetite",
+        "depression",
+        "infection"
+      ],
+      "retrieved_docs": [
+        "eating_appetite_loss: Reduced appetite in elderly patients can signal depression, infection, medication side effects, or dental pain. If eating drops below 50% of baseline frequency for 3 or more consecutive days, notify caregiver.",
+        "general_routine_change: Sudden change in routine such as eating or walking patterns in elderly can indicate onset of infection or depression.",
+        "eating_hypoglycaemia_risk: Residents on insulin or sulfonylureas who miss meals are at serious risk of hypoglycaemia. Symptoms include confusion, sweating, shakiness, and loss of consciousness. Treat as medical emergency."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q16",
+      "query": "reduced walking activity fall fear pain",
+      "relevant_keywords": [
+        "walking",
+        "physiotherapy",
+        "pain"
+      ],
+      "retrieved_docs": [
+        "walking_reduced_activity: A significant reduction in walking activity below 50% of baseline may indicate pain, fatigue, illness, or post-fall fear. Persistent reduction warrants a physiotherapy assessment.",
+        "walking_night_fall_risk: Walking activity at night carries significantly higher fall risk than daytime walking due to reduced visibility, disorientation, and lower muscle readiness.",
+        "fall_risk_medication: Medications that increase fall risk include sedatives, antihypertensives, diuretics, antidepressants, and antipsychotics. A pharmacist review is recommended after any fall event."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q17",
+      "query": "night walking fall risk elderly",
+      "relevant_keywords": [
+        "night",
+        "fall risk",
+        "walking"
+      ],
+      "retrieved_docs": [
+        "walking_night_fall_risk: Walking activity at night carries significantly higher fall risk than daytime walking due to reduced visibility, disorientation, and lower muscle readiness.",
+        "night_wandering_safety: Unsupervised night wandering carries fall risk, especially in low-light conditions. Ensure pathways are clear, night lights are installed, and stairways are secured.",
+        "general_inactivity: Inactivity exceeding 4 hours during waking hours 7am to 9pm is a fall risk indicator in elderly patients."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q18",
+      "query": "prolonged sitting dvt pressure sores",
+      "relevant_keywords": [
+        "sitting",
+        "thrombosis",
+        "pressure"
+      ],
+      "retrieved_docs": [
+        "sitting_prolonged_risk: Sitting for more than 4 consecutive hours increases risk of deep vein thrombosis, pressure sores, and muscle deconditioning in elderly patients. Encourage standing or brief walks hourly.",
+        "fall_risk_lying_down_extended: Prolonged lying down more than 2 consecutive hours outside sleep hours may indicate post-fall inability to rise, acute illness, or extreme fatigue. Check on resident immediately.",
+        "lisinopril: Blood pressure medication. Missing doses can cause dangerous blood pressure spikes in elderly patients."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q19",
+      "query": "night wandering dementia sundowning",
+      "relevant_keywords": [
+        "wandering",
+        "dementia",
+        "sundowning"
+      ],
+      "retrieved_docs": [
+        "night_wandering_dementia: Night wandering is present in up to 66% of dementia patients. Increased frequency may indicate disease progression.",
+        "night_wandering_definition: Night wandering is defined as walking activity detected between 10pm and 5am outside the resident normal sleep pattern. This is a common early indicator of dementia or sundowning syndrome.",
+        "night_wandering_pain: Unexplained night waking and wandering can indicate unmanaged pain such as arthritis or neuropathy. Review analgesic timing if wandering coincides with pain medication schedule."
+      ],
+      "relevance_mask": [
+        false,
+        true,
+        false
+      ],
+      "first_relevant_rank": 2,
+      "reciprocal_rank": 0.5,
+      "per_k": {
+        "1": {
+          "precision": 0.0,
+          "recall": 0.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q20",
+      "query": "night wandering safety pathway lights",
+      "relevant_keywords": [
+        "wandering",
+        "night lights",
+        "stairways"
+      ],
+      "retrieved_docs": [
+        "night_wandering_safety: Unsupervised night wandering carries fall risk, especially in low-light conditions. Ensure pathways are clear, night lights are installed, and stairways are secured.",
+        "night_wandering_definition: Night wandering is defined as walking activity detected between 10pm and 5am outside the resident normal sleep pattern. This is a common early indicator of dementia or sundowning syndrome.",
+        "walking_night_fall_risk: Walking activity at night carries significantly higher fall risk than daytime walking due to reduced visibility, disorientation, and lower muscle readiness."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q21",
+      "query": "night wandering pain analgesic timing",
+      "relevant_keywords": [
+        "wandering",
+        "pain",
+        "analgesic"
+      ],
+      "retrieved_docs": [
+        "night_wandering_pain: Unexplained night waking and wandering can indicate unmanaged pain such as arthritis or neuropathy. Review analgesic timing if wandering coincides with pain medication schedule.",
+        "night_wandering_definition: Night wandering is defined as walking activity detected between 10pm and 5am outside the resident normal sleep pattern. This is a common early indicator of dementia or sundowning syndrome.",
+        "night_wandering_dementia: Night wandering is present in up to 66% of dementia patients. Increased frequency may indicate disease progression."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q22",
+      "query": "high severity anomaly notification time",
+      "relevant_keywords": [
+        "HIGH severity",
+        "15 minutes"
+      ],
+      "retrieved_docs": [
+        "monitoring_anomaly_high: HIGH severity anomalies such as missed medication or confirmed fall require caregiver notification within 15 minutes.",
+        "monitoring_anomaly_medium: MEDIUM severity anomalies such as unusual meal timing or reduced walking require caregiver notification within 1 hour.",
+        "fall_post_event_monitoring: After a confirmed fall, increase monitoring frequency to every 30 minutes for the first 4 hours. Document time, location, and activity at time of fall."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q23",
+      "query": "escalating trend risk score monitoring",
+      "relevant_keywords": [
+        "escalating",
+        "3",
+        "consecutive"
+      ],
+      "retrieved_docs": [
+        "monitoring_trend_escalating: An escalating trend with risk score increasing over 3 or more consecutive days is a stronger concern indicator than any single day score.",
+        "fall_post_event_monitoring: After a confirmed fall, increase monitoring frequency to every 30 minutes for the first 4 hours. Document time, location, and activity at time of fall.",
+        "monitoring_anomaly_high: HIGH severity anomalies such as missed medication or confirmed fall require caregiver notification within 15 minutes."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q24",
+      "query": "dehydration dizziness fall risk elderly",
+      "relevant_keywords": [
+        "dehydration",
+        "dizziness",
+        "fall"
+      ],
+      "retrieved_docs": [
+        "fall_risk_dehydration: Dehydration causes dizziness and orthostatic hypotension in elderly patients, significantly increasing fall risk. Encourage 6-8 glasses of water daily.",
+        "amlodipine: Calcium channel blocker for blood pressure. Dizziness and falls are common side effects especially in elderly.",
+        "fall_risk_hip_fracture: Hip fracture is the most dangerous fall complication in elderly patients. Risk increases significantly after age 75. Signs include inability to bear weight, shortened or rotated leg, severe groin pain."
+      ],
+      "relevance_mask": [
+        true,
+        false,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 0.5,
+          "recall": 1.0
+        },
+        "3": {
+          "precision": 0.333,
+          "recall": 1.0
+        }
+      }
+    },
+    {
+      "query_id": "Q25",
+      "query": "singapore emergency ambulance number",
+      "relevant_keywords": [
+        "995",
+        "Singapore"
+      ],
+      "retrieved_docs": [
+        "emergency_contacts_singapore: Singapore emergency services: 995 for ambulance and fire, 999 for police. Agency for Integrated Care helpline: 1800-650-6060.",
+        "fall_response_immediate: If a fall is detected, do not attempt to move the resident. Call emergency services (995 in Singapore) if the resident is unresponsive, bleeding, or complaining of head or hip pain.",
+        "monitoring_anomaly_high: HIGH severity anomalies such as missed medication or confirmed fall require caregiver notification within 15 minutes."
+      ],
+      "relevance_mask": [
+        true,
+        true,
+        false
+      ],
+      "first_relevant_rank": 1,
+      "reciprocal_rank": 1.0,
+      "per_k": {
+        "1": {
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "2": {
+          "precision": 1.0,
+          "recall": 2.0
+        },
+        "3": {
+          "precision": 0.667,
+          "recall": 2.0
+        }
+      }
+    }
+  ]
+}
