@@ -36,6 +36,14 @@ class RAGRetriever:
             self.collection = None
             self._available = False
 
+        # BM25 sparse index — built from the same docs as ChromaDB
+        # Falls back to None if ChromaDB unavailable or rank_bm25 missing
+        self._bm25:      "BM25Okapi | None" = None
+        self._bm25_docs: list               = []
+        self._bm25_ids:  list               = []
+        if self._available:
+            self._build_bm25_index()
+
     def get_context(self, anomalies: list, n_results: int = 3) -> str:
         """
         Given anomaly dicts (or mixed list with string items), return relevant facts.
@@ -140,3 +148,27 @@ JSON only. No markdown. No extra text."""
         except Exception as e:
             logger.warning("Relevance scoring failed (non-blocking): %s", e)
             return 1.0
+
+    def _build_bm25_index(self) -> None:
+        """
+        Build BM25 sparse retrieval index over all ChromaDB documents.
+        Called once in __init__ when ChromaDB is available.
+        Populates self._bm25, self._bm25_docs, self._bm25_ids.
+        Fails silently — BM25 is an enhancement, not a hard requirement.
+        """
+        try:
+            from rank_bm25 import BM25Okapi
+            all_data = self.collection.get(include=["documents"])  # ids are always returned
+            self._bm25_docs = all_data.get("documents", [])
+            self._bm25_ids  = all_data.get("ids", [])
+            if not self._bm25_docs:
+                logger.warning("BM25 index: no documents found in collection")
+                return
+            corpus = [doc.lower().split() for doc in self._bm25_docs]
+            self._bm25 = BM25Okapi(corpus)
+            logger.info("BM25 index built: %d documents", len(self._bm25_docs))
+        except Exception as e:
+            logger.warning("BM25 index build failed (non-blocking): %s", e)
+            self._bm25      = None
+            self._bm25_docs = []
+            self._bm25_ids  = []
