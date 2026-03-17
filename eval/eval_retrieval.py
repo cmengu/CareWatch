@@ -44,18 +44,29 @@ def doc_is_relevant(doc_text: str, keywords: list[str]) -> bool:
     return all(kw.lower() in text_lower for kw in keywords)
 
 
-def evaluate_query(gt: RAGGroundTruth, collection, k_values: list[int]) -> dict:
+def evaluate_query(
+    gt: RAGGroundTruth,
+    collection,
+    k_values: list[int],
+    rag=None,
+) -> dict:
     """
     Run one ground truth query against ChromaDB.
     Returns per-k Precision, Recall, and rank of first relevant doc.
+
+    If rag is provided (RAGRetriever instance), uses _hybrid_retrieve()
+    instead of direct ChromaDB query — enables hybrid mode comparison.
     """
     max_k = max(k_values)
     try:
-        results = collection.query(
-            query_texts=[gt.query],
-            n_results=min(max_k, collection.count()),
-        )
-        docs = results.get("documents", [[]])[0]
+        if rag is not None:
+            docs = rag._hybrid_retrieve(gt.query, n=max_k)
+        else:
+            results = collection.query(
+                query_texts=[gt.query],
+                n_results=min(max_k, collection.count()),
+            )
+            docs = results.get("documents", [[]])[0]
     except Exception as e:
         logger.warning("Query failed for %s: %s", gt.query_id, e)
         docs = []
@@ -173,6 +184,12 @@ def main() -> int:
         default=[1, 2, 3],
         help="k values for Precision@k and Recall@k (default: 1 2 3)",
     )
+    p.add_argument(
+        "--mode",
+        choices=["raw", "hybrid", "both"],
+        default="raw",
+        help="raw: ChromaDB only (baseline). hybrid: BM25+dense RRF. both: run both and compare.",
+    )
     args = p.parse_args()
 
     k_values = sorted(set(args.k))
@@ -195,33 +212,66 @@ def main() -> int:
         print(f"ChromaDB error: {e}")
         return 1
 
-    query_results = []
-    for gt in GROUND_TRUTH:
-        result = evaluate_query(gt, collection, k_values)
-        query_results.append(result)
-        print(
-            f"  {gt.query_id}: RR={result['reciprocal_rank']:.2f}  "
-            f"relevant_in_top3={'yes' if result['first_relevant_rank'] > 0 else 'NO'}"
-        )
+    modes_to_run = ["raw", "hybrid"] if args.mode == "both" else [args.mode]
+    all_metrics = {}
+    all_results = {}
 
-    metrics = compute_aggregate_metrics(query_results, k_values)
-    print_results(query_results, metrics, k_values)
+    for mode in modes_to_run:
+        rag_instance = None
+        if mode == "hybrid":
+            from src.rag_retriever import RAGRetriever
+            rag_instance = RAGRetriever()
+            if rag_instance._bm25 is None:
+                print("  ⚠ BM25 index not available — hybrid mode falls back to dense only")
+
+        print(f"\n  === Mode: {mode.upper()} ===")
+        query_results = []
+        for gt in GROUND_TRUTH:
+            result = evaluate_query(gt, collection, k_values, rag=rag_instance)
+            query_results.append(result)
+            print(
+                f"  {gt.query_id}: RR={result['reciprocal_rank']:.2f}  "
+                f"relevant_in_top3={'yes' if result['first_relevant_rank'] > 0 else 'NO'}"
+            )
+
+        metrics = compute_aggregate_metrics(query_results, k_values)
+        all_metrics[mode] = metrics
+        all_results[mode] = query_results
+        print_results(query_results, metrics, k_values)
+
+    if args.mode == "both":
+        print("\n  === COMPARISON: RAW vs HYBRID ===")
+        raw_mrr    = all_metrics["raw"]["mrr"]
+        hybrid_mrr = all_metrics["hybrid"]["mrr"]
+        delta      = round(hybrid_mrr - raw_mrr, 3)
+        direction  = "↑" if delta >= 0 else "↓"
+        print(f"  MRR:  raw={raw_mrr:.3f}  hybrid={hybrid_mrr:.3f}  delta={direction}{abs(delta):.3f}")
+        for k in k_values:
+            rp = all_metrics["raw"]["per_k"][k]["precision_at_k"]
+            hp = all_metrics["hybrid"]["per_k"][k]["precision_at_k"]
+            print(f"  P@{k}: raw={rp:.3f}  hybrid={hp:.3f}  delta={'↑' if hp>=rp else '↓'}{abs(hp-rp):.3f}")
+        print()
 
     out_dir = Path("eval/results")
     out_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_path = out_dir / f"rag_eval_{ts}.json"
-    out_path.write_text(
-        json.dumps(
-            {
-                "run_at": datetime.now().isoformat(),
-                "k_values": k_values,
-                "metrics": metrics,
-                "results": query_results,
-            },
-            indent=2,
-        )
-    )
+    if args.mode == "both":
+        payload = {
+            "run_at": datetime.now().isoformat(),
+            "k_values": k_values,
+            "mode": "both",
+            "raw": {"metrics": all_metrics["raw"], "results": all_results["raw"]},
+            "hybrid": {"metrics": all_metrics["hybrid"], "results": all_results["hybrid"]},
+        }
+    else:
+        payload = {
+            "run_at": datetime.now().isoformat(),
+            "k_values": k_values,
+            "metrics": all_metrics[args.mode],
+            "results": all_results[args.mode],
+        }
+    out_path.write_text(json.dumps(payload, indent=2))
     print(f"  Full results: {out_path}")
 
     return 0
