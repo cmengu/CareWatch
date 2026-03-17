@@ -172,3 +172,155 @@ JSON only. No markdown. No extra text."""
             self._bm25      = None
             self._bm25_docs = []
             self._bm25_ids  = []
+
+    # ─────────────────────────────────────────────────────────────────
+    # RAG 2.0 — query decomposition + hybrid retrieval (4 spaces = class level)
+    # ─────────────────────────────────────────────────────────────────
+
+    # Per-anomaly semantic query map. Keys: (activity, anomaly_type).
+    _QUERY_MAP: dict = {
+        ("fallen",      "FALLEN"):    "fall detection emergency response hip fracture elderly",
+        ("fallen",      "UNCLEARED"): "fall alert persistent uncleared caregiver response protocol",
+        ("pill_taking", "MISSING"):   "missed medication elderly morning dosing window adherence",
+        ("pill_taking", "TIMING"):    "medication timing deviation dosing window late",
+        ("eating",      "MISSING"):   "missed meal elderly nutrition appetite loss hypoglycaemia",
+        ("eating",      "TIMING"):    "eating timing unusual late meal elderly blood sugar",
+        ("walking",     "MISSING"):   "reduced mobility elderly sedentary inactivity physiotherapy",
+        ("walking",     "TIMING"):    "walking timing unusual night wandering fall risk",
+        ("sitting",     "MISSING"):   "prolonged inactivity elderly pressure sores thrombosis",
+        ("lying_down",  "MISSING"):   "lying down prolonged elderly pressure ulcer circulation",
+        ("lying_down",  "TIMING"):    "lying down night wandering sleep disturbance dementia",
+    }
+    _QUERY_FALLBACK: str = "elderly resident activity deviation monitoring safety"
+
+    def _decompose_queries(self, anomalies: list) -> list[str]:
+        """
+        Map each dict anomaly to a domain-specific semantic query string.
+        Returns a deduplicated list of query strings (one per distinct anomaly type).
+        String anomalies (no-baseline path) are skipped silently.
+        Returns [_QUERY_FALLBACK] if no anomalies match the query map.
+        """
+        queries = []
+        seen = set()
+        for a in anomalies:
+            if not isinstance(a, dict):
+                continue
+            key = (a.get("activity", ""), a.get("type", ""))
+            q = self._QUERY_MAP.get(key, self._QUERY_FALLBACK)
+            if q not in seen:
+                queries.append(q)
+                seen.add(q)
+        return queries if queries else [self._QUERY_FALLBACK]
+
+    def _hybrid_retrieve(self, query: str, n: int = 3) -> list[str]:
+        """
+        Retrieve top-n documents using Reciprocal Rank Fusion over:
+          - Dense: ChromaDB cosine similarity
+          - Sparse: BM25 keyword match
+
+        Returns list of document text strings (not IDs).
+        Falls back to dense-only if self._bm25 is None.
+        Never raises — returns [] on any failure.
+        """
+        if not self._available:
+            return []
+
+        fetch_n = min(n * 2, self.collection.count())
+
+        try:
+            # Dense retrieval
+            dense_results = self.collection.query(
+                query_texts=[query],
+                n_results=fetch_n,
+            )
+            dense_ids = dense_results.get("ids", [[]])[0]
+
+            # Sparse retrieval — skip if BM25 not available
+            sparse_ids = []
+            if self._bm25 is not None and self._bm25_ids:
+                bm25_scores = self._bm25.get_scores(query.lower().split())
+                ranked_indices = sorted(
+                    range(len(bm25_scores)),
+                    key=lambda i: bm25_scores[i],
+                    reverse=True,
+                )
+                sparse_ids = [self._bm25_ids[i] for i in ranked_indices[:fetch_n]]
+
+            # Reciprocal Rank Fusion (k=60 per original RRF paper)
+            k = 60
+            rrf_scores: dict[str, float] = {}
+            for rank, doc_id in enumerate(dense_ids):
+                rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + 1.0 / (k + rank + 1)
+            for rank, doc_id in enumerate(sparse_ids):
+                rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + 1.0 / (k + rank + 1)
+
+            top_ids = sorted(rrf_scores, key=rrf_scores.get, reverse=True)[:n]
+
+            # Resolve IDs to document text
+            id_to_doc = dict(zip(self._bm25_ids, self._bm25_docs))
+            return [id_to_doc[doc_id] for doc_id in top_ids if doc_id in id_to_doc]
+
+        except Exception as e:
+            logger.warning("_hybrid_retrieve failed (non-blocking): %s", e)
+            return []
+
+    def get_context_v2(self, anomalies: list, n_results: int = 3) -> str:
+        """
+        RAG 2.0 entry point — replaces get_context() in the specialist agent path.
+
+        Pipeline:
+          1. Decompose anomalies into per-type semantic queries
+          2. Retrieve top-n docs per query via hybrid dense+sparse (RRF)
+          3. Deduplicate results by doc ID across all queries
+          4. Rerank the merged set (stub — returns top-n as-is)
+          5. Return as newline-joined string (same format as get_context())
+
+        Returns empty string if RAG unavailable or all retrieval fails.
+        Never raises.
+        """
+        if not self._available or not anomalies:
+            return ""
+
+        if self.collection.count() == 0:
+            return ""
+
+        try:
+            queries = self._decompose_queries(anomalies)
+            seen_ids: set[str] = set()
+            merged_docs: list[str] = []
+
+            for query in queries:
+                docs = self._hybrid_retrieve(query, n=n_results)
+                for doc in docs:
+                    if doc not in seen_ids:
+                        seen_ids.add(doc)
+                        merged_docs.append(doc)
+
+            if not merged_docs:
+                return ""
+
+            reranked = self._rerank(
+                query=queries[0],
+                docs=merged_docs,
+                top_k=n_results,
+            )
+
+            return "\n".join(reranked)
+
+        except Exception as e:
+            logger.warning("get_context_v2 failed (non-blocking): %s", e)
+            return ""
+
+    def _rerank(self, query: str, docs: list[str], top_k: int = 3) -> list[str]:
+        """
+        Cross-encoder reranking stub.
+        Currently returns docs[:top_k] — highest-scoring from RRF merge.
+
+        Upgrade path (one swap when cross-encoder model is available):
+          from sentence_transformers import CrossEncoder
+          model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+          scores = model.predict([(query, doc) for doc in docs])
+          ranked = sorted(range(len(docs)), key=lambda i: scores[i], reverse=True)
+          return [docs[i] for i in ranked[:top_k]]
+        """
+        return docs[:top_k]
