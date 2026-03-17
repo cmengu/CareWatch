@@ -61,6 +61,7 @@ class AgentResult(RiskResult):
     error:            Optional[str] = None
     confidence:       str           = Field("high", pattern="^(high|low)$")
     cusum_result:     Optional[dict] = None
+    prompt_version:   Optional[str]  = None
 
 
 @dataclasses.dataclass
