@@ -180,6 +180,7 @@ class CareWatchAgent:
 
         # Step 5 — confidence gate then alert gate
         full_result.confidence = _check_confidence(full_result)
+        full_result.prompt_version = getattr(_variant, "variant_id", "A1C1")
         if send_alert and full_result.confidence == "high":
             self.alerts.send(
                 full_result.model_dump(),

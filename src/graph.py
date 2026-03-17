@@ -210,6 +210,7 @@ def _make_alert_node(alerts: AlertSuppressionLayer, audit: AuditLogger):
                 resident_id=person_id,
             )
 
+        final.prompt_version = getattr(state.get("_variant"), "variant_id", "langgraph")
         audit.write(person_id, final)
         return {"alert_sent": send_alert}
     return alert_node

@@ -175,6 +175,7 @@ class CareWatchLangChainAgent:
                     resident_id=person_id,
                 )
 
+            full_result.prompt_version = "langchain"
             self.audit.write(person_id, full_result)
             return full_result
 
