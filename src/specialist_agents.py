@@ -119,18 +119,20 @@ class _BaseSpecialist:
         self.rag = rag
 
     def _get_rag_context(self, anomalies: list[dict]) -> str:
-        """Retrieve RAG context. Discards context with relevance < 0.5 (matches CareWatchAgent)."""
+        """
+        Retrieve RAG context via get_context_v2():
+        query decomposition + hybrid dense/sparse retrieval + RRF merge + reranking.
+        Relevance filtering is handled inside get_context_v2() — no separate
+        _score_relevance() call needed in this path.
+        CareWatchAgent continues to use get_context() + _score_relevance() unchanged.
+        """
         try:
-            context = self.rag.get_context(anomalies)
-            if not context:
-                return ""
-            score = self.rag._score_relevance(context, anomalies)
-            if score < 0.5:
-                logger.info("%s: RAG relevance %.2f below threshold — skipping", self.agent_name, score)
-                return ""
-            return context
+            return self.rag.get_context_v2(anomalies)
         except Exception as e:
-            logger.warning("%s: RAG retrieval failed (%s) — continuing without context", self.agent_name, e)
+            logger.warning(
+                "%s: RAG retrieval failed (%s) — continuing without context",
+                self.agent_name, e,
+            )
             return ""
 
     def _explain(
