@@ -55,6 +55,7 @@ class AgentResult(RiskResult):
     error is Optional — only present when detector.check() raised.
     confidence is "high" by default — set to "low" when score and concern_level contradict.
     cusum_result is Optional — CUSUMCheckResult serialized as dict from ResidentCUSUMMonitor.check().
+    prompt_version is Optional — which prompt variant produced this result (e.g. A1C1, langgraph, langchain).
     """
     ai_explanation:   AIExplanation
     rag_context_used: bool

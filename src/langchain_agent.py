@@ -168,6 +168,8 @@ class CareWatchLangChainAgent:
                 cusum_result     = None,
             )
 
+            full_result.prompt_version = "langchain"
+
             if send_alert:
                 self.alerts.send(
                     full_result.model_dump(),
@@ -175,7 +177,6 @@ class CareWatchLangChainAgent:
                     resident_id=person_id,
                 )
 
-            full_result.prompt_version = "langchain"
             self.audit.write(person_id, full_result)
             return full_result
 
