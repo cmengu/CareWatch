@@ -202,14 +202,17 @@ def main() -> int:
 
         client = chromadb.PersistentClient(path="data/chroma_db")
         collection = client.get_collection("carewatch_knowledge")
-        doc_count = collection.count()
-        print(f"  ChromaDB: {doc_count} documents loaded")
-        assert doc_count == 47, (
-            f"Expected 47 docs, got {doc_count}. "
-            f"Run python -m src.knowledge_base."
-        )
     except Exception as e:
         print(f"ChromaDB error: {e}")
+        return 1
+
+    doc_count = collection.count()
+    print(f"  ChromaDB: {doc_count} documents loaded")
+    if doc_count != 47:
+        print(
+            f"  Doc count mismatch: expected 47, got {doc_count}. "
+            f"Run python -m src.knowledge_base."
+        )
         return 1
 
     modes_to_run = ["raw", "hybrid"] if args.mode == "both" else [args.mode]

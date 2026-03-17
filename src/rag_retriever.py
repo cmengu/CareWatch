@@ -166,12 +166,15 @@ JSON only. No markdown. No extra text."""
                 return
             corpus = [doc.lower().split() for doc in self._bm25_docs]
             self._bm25 = BM25Okapi(corpus)
+            # Cache once — avoids O(n) dict rebuild on every _hybrid_retrieve call.
+            self._id_to_doc: dict[str, str] = dict(zip(self._bm25_ids, self._bm25_docs))
             logger.info("BM25 index built: %d documents", len(self._bm25_docs))
         except Exception as e:
             logger.warning("BM25 index build failed (non-blocking): %s", e)
             self._bm25      = None
             self._bm25_docs = []
             self._bm25_ids  = []
+            self._id_to_doc = {}
 
     # ─────────────────────────────────────────────────────────────────
     # RAG 2.0 — query decomposition + hybrid retrieval (4 spaces = class level)
@@ -187,9 +190,11 @@ JSON only. No markdown. No extra text."""
         ("eating",      "TIMING"):    "eating timing unusual late meal elderly blood sugar",
         ("walking",     "MISSING"):   "reduced mobility elderly sedentary inactivity physiotherapy",
         ("walking",     "TIMING"):    "walking timing unusual night wandering fall risk",
-        ("sitting",     "MISSING"):   "prolonged inactivity elderly pressure sores thrombosis",
-        ("lying_down",  "MISSING"):   "lying down prolonged elderly pressure ulcer circulation",
-        ("lying_down",  "TIMING"):    "lying down night wandering sleep disturbance dementia",
+        ("sitting",          "MISSING"):   "prolonged inactivity elderly pressure sores thrombosis",
+        ("sitting",          "TIMING"):    "unusual sitting timing elderly night restlessness",
+        ("lying_down",       "MISSING"):   "lying down prolonged elderly pressure ulcer circulation",
+        ("lying_down",       "TIMING"):    "lying down night wandering sleep disturbance dementia",
+        ("persistent_alert", "UNCLEARED"): "fall alert persistent uncleared caregiver response protocol",
     }
     _QUERY_FALLBACK: str = "elderly resident activity deviation monitoring safety"
 
@@ -226,6 +231,8 @@ JSON only. No markdown. No extra text."""
             return []
 
         fetch_n = min(n * 2, self.collection.count())
+        if fetch_n < 1:
+            return []
 
         try:
             # Dense retrieval
@@ -256,9 +263,8 @@ JSON only. No markdown. No extra text."""
 
             top_ids = sorted(rrf_scores, key=rrf_scores.get, reverse=True)[:n]
 
-            # Resolve IDs to document text
-            id_to_doc = dict(zip(self._bm25_ids, self._bm25_docs))
-            return [id_to_doc[doc_id] for doc_id in top_ids if doc_id in id_to_doc]
+            # Resolve IDs → text using the cached map built in _build_bm25_index()
+            return [self._id_to_doc[doc_id] for doc_id in top_ids if doc_id in self._id_to_doc]
 
         except Exception as e:
             logger.warning("_hybrid_retrieve failed (non-blocking): %s", e)
@@ -286,14 +292,16 @@ JSON only. No markdown. No extra text."""
 
         try:
             queries = self._decompose_queries(anomalies)
-            seen_ids: set[str] = set()
+            seen_texts: set[str] = set()
             merged_docs: list[str] = []
 
             for query in queries:
                 docs = self._hybrid_retrieve(query, n=n_results)
                 for doc in docs:
-                    if doc not in seen_ids:
-                        seen_ids.add(doc)
+                    # Deduplicate by doc text — unique at 47 facts; will need ID-based
+                    # dedup if the knowledge base grows to include near-duplicate entries.
+                    if doc not in seen_texts:
+                        seen_texts.add(doc)
                         merged_docs.append(doc)
 
             if not merged_docs:
