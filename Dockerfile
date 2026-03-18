@@ -1,4 +1,4 @@
-# CareWatch pipeline image — Python 3.12, src + prompts only; data mounted at runtime
+# CareWatch pipeline image — Python 3.12
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -12,14 +12,11 @@ COPY app/ app/
 COPY src/ src/
 COPY run_pipeline.py .
 
-# Copy prompt templates (required by prompt_registry.py)
-COPY data/prompts/ data/prompts/
-
-# data/ mounted as volume at runtime — DB and ChromaDB persist across restarts
+COPY data/ data/
 # .env injected via environment in docker-compose.yml — never copied into image
 # model/*.pt not needed — pipeline reads from DB, not camera
 
 RUN useradd --create-home carewatch
 USER carewatch
 
-CMD ["python", "run_pipeline.py", "--find-red"]
+CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
