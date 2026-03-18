@@ -14,7 +14,7 @@ import random
 import sqlite3
 from datetime import datetime, timedelta
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.logger import ActivityLogger
@@ -129,3 +129,91 @@ def inject_demo():
     _inject_demo_data()
     builder.build_baseline(PERSON)
     return {"ok": True, "message": "Demo data injected and baseline built"}
+
+
+# ── Medication schedule endpoints (from PillReminder) ─────────────────────
+from src.medication import MedicationRepo
+from src.label_detector import MedicationLabelDetector
+from src.privacy import record_consent, has_active_consent
+from pydantic import BaseModel as _BaseModel
+from typing import Optional as _Optional
+
+
+class MedicationSchedulePayload(_BaseModel):
+    medication_name: str
+    dose: _Optional[str] = None
+    time_of_day: str
+    tolerance_min: int = 30
+    illness_hint: _Optional[str] = None
+    meal_relation: str = "fixed"
+    meal_name: _Optional[str] = None
+
+
+class MealSchedulePayload(_BaseModel):
+    meal_name: str
+    time_of_day: str
+    tolerance_min: int = 60
+
+
+class ConsentPayload(_BaseModel):
+    consented: bool
+    consented_by: str = "resident"
+
+
+_med_repo = MedicationRepo()
+_label_detector = MedicationLabelDetector()
+
+
+@app.get("/residents/{person_id}/medication-schedules")
+def list_medication_schedules(person_id: str):
+    return _med_repo.list_schedules(person_id)
+
+
+@app.post("/residents/{person_id}/medication-schedules")
+def create_medication_schedule(person_id: str, payload: MedicationSchedulePayload):
+    return _med_repo.create_schedule(person_id, payload)
+
+
+@app.delete("/residents/{person_id}/medication-schedules/{schedule_id}")
+def delete_medication_schedule(person_id: str, schedule_id: int):
+    _med_repo.delete_schedule(person_id, schedule_id)
+    return {"deleted": schedule_id}
+
+
+@app.get("/residents/{person_id}/meal-schedules")
+def list_meal_schedules(person_id: str):
+    return _med_repo.list_meal_schedules(person_id)
+
+
+@app.post("/residents/{person_id}/meal-schedules")
+def create_meal_schedule(person_id: str, payload: MealSchedulePayload):
+    return _med_repo.create_meal_schedule(person_id, payload)
+
+
+@app.delete("/residents/{person_id}/meal-schedules/{schedule_id}")
+def delete_meal_schedule(person_id: str, schedule_id: int):
+    _med_repo.delete_meal_schedule(person_id, schedule_id)
+    return {"deleted": schedule_id}
+
+
+@app.post("/residents/{person_id}/scan")
+async def scan_medication_label(person_id: str, file: UploadFile = File(...)):
+    """
+    Upload a pill bottle image. Returns structured medication info.
+    The result is also written to medication_event via graph scan_node when
+    graph.invoke() is called with image_bytes.
+    """
+    file_bytes = await file.read()
+    result = _label_detector.extract_from_image(file_bytes)
+    return result
+
+
+@app.post("/residents/{person_id}/consent")
+def update_consent(person_id: str, payload: ConsentPayload):
+    record_consent(person_id, payload.consented, payload.consented_by)
+    return {"consented": payload.consented, "person_id": person_id}
+
+
+@app.get("/residents/{person_id}/consent")
+def get_consent_status(person_id: str):
+    return {"has_active_consent": has_active_consent(person_id), "person_id": person_id}
