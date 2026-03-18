@@ -74,3 +74,4 @@ langchain==0.3.7
 langchain-groq==0.2.1
 langsmith==0.1.147
 rank-bm25==0.2.2
+python-multipart==0.0.18
