@@ -11,29 +11,29 @@ Built as a production-oriented agentic system using LangGraph. Every architectur
 ## Architecture
 ```mermaid
 flowchart TD
-    IMG[📷 Pill Bottle Image\noptional] --> SN
+    IMG[Pill Bottle Image<br/>optional] --> SN
 
-    subgraph Scan ["🔍 Label Scan Layer"]
-        SN[scan_node\nMedicationLabelDetector]
-        MSN[med_scan_node\nMedScanAgent]
-        CN[chronic_node\nChronicAgent]
+    subgraph Scan ["Label Scan Layer"]
+        SN[scan_node<br/>MedicationLabelDetector]
+        MSN[med_scan_node<br/>MedScanAgent]
+        CN[chronic_node<br/>ChronicAgent]
     end
 
-    DB[(activity_log\nmedication_event\nSQLite)] --> DD
+    DB[(activity_log<br/>medication_event<br/>SQLite)] --> DD
 
-    subgraph Detection ["⚙️ Detection Layer"]
-        DD[DeviationDetector\nweight-based scoring]
-        CUSUM[CUSUM Monitor\ngradual drift]
+    subgraph Detection ["Detection Layer"]
+        DD[DeviationDetector<br/>weight-based scoring]
+        CUSUM[CUSUM Monitor<br/>gradual drift]
         DD --> CUSUM
     end
 
-    subgraph Orchestrator ["🤖 CareWatchOrchestrator — LangGraph 11-node"]
+    subgraph Orchestrator ["CareWatchOrchestrator — LangGraph 11-node"]
         direction TB
-        RN{route_node\nanomalies → agents}
-        FA[FallAgent\nFALLEN · UNCLEARED]
-        MA[MedAgent\npill_taking]
-        RA[RoutineAgent\neating · walking · routine]
-        SA[SummaryAgent\npriority merge]
+        RN{route_node<br/>anomalies to agents}
+        FA[FallAgent<br/>FALLEN · UNCLEARED]
+        MA[MedAgent<br/>pill_taking]
+        RA[RoutineAgent<br/>eating · walking · routine]
+        SA[SummaryAgent<br/>priority merge]
 
         RN -->|FALLEN / UNCLEARED| FA
         RN -->|pill_taking| MA
@@ -47,22 +47,22 @@ flowchart TD
         RA --> SA
     end
 
-    subgraph RAG ["📚 RAG 2.0 — Hybrid Retrieval"]
+    subgraph RAG ["RAG 2.0 — Hybrid Retrieval"]
         direction LR
-        DQ[_decompose_queries\nper anomaly type]
-        DENSE[ChromaDB\ncosine similarity]
-        BM25[BM25\nkeyword match]
-        RRF[Reciprocal Rank Fusion\nk=60]
+        DQ[decompose_queries<br/>per anomaly type]
+        DENSE[ChromaDB<br/>cosine similarity]
+        BM25[BM25<br/>keyword match]
+        RRF[Reciprocal Rank Fusion<br/>k=60]
         DQ --> DENSE
         DQ --> BM25
         DENSE --> RRF
         BM25 --> RRF
     end
 
-    subgraph Privacy ["🔒 Privacy Layer (PDPA)"]
-        PII[strip_pii()\nbefore Telegram send]
-        CONSENT[consent_log\nSQLite]
-        PSEUDO[pseudonymous_id\nsha256 hash]
+    subgraph Privacy ["Privacy Layer — PDPA"]
+        PII[strip_pii<br/>before Telegram send]
+        CONSENT[consent_log<br/>SQLite]
+        PSEUDO[pseudonymous_id<br/>sha256 hash]
     end
 
     SN -->|image_bytes present| MSN
@@ -74,14 +74,14 @@ flowchart TD
     RRF -->|domain context| CN
     RRF -->|domain context| RA
 
-    SA -->|RED| HG[human_gate_node\n⏸ caregiver review]
+    SA -->|RED| HG[human_gate_node<br/>caregiver review]
     SA -->|YELLOW / GREEN| AL
 
-    HG -->|/clear| AL[AlertSuppressionLayer\n4hr dedup window]
+    HG -->|/clear| AL[AlertSuppressionLayer<br/>4hr dedup window]
     AL --> PII
-    PII --> TG[📱 Telegram Alert\nfamily notification]
-    AL -->|voice_alert=True| TTS[🔊 TTS Reminder\npyttsx3]
-    AL --> AUD[(agent_runs\nSQLite audit log)]
+    PII --> TG[Telegram Alert<br/>family notification]
+    AL -->|voice_alert=True| TTS[TTS Reminder<br/>pyttsx3]
+    AL --> AUD[(agent_runs<br/>SQLite audit log)]
 
     style Scan fill:#3a2a1a,color:#fff,stroke:#ffaa44
     style Detection fill:#1e3a5f,color:#fff,stroke:#4a9eff
