@@ -19,6 +19,7 @@ CONTROLS:
 import sys, os, argparse, time, collections, threading
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import logging
 import cv2
 import numpy as np
 import torch
@@ -28,6 +29,8 @@ from src.classification_keypoint import AngleFeatureExtractor, AngleLSTMNet, SEQ
 from src.logger import ActivityLogger
 from src.deviation_detector import DeviationDetector
 from src.suppression import AlertSuppressionLayer
+from src.tts import speak as _tts_speak
+from src.medication import MedicationRepo
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 POSE_MODEL_PATH  = "yolo11x-pose.pt"
@@ -159,6 +162,29 @@ def deviation_check_loop():
         AlertSuppressionLayer().send(result, person_name="Mrs Tan", resident_id="default")
         time.sleep(900)  # 15 minutes
 
+
+# ── MEAL REMINDER LOOP (runs every 60 s) ────────────────────────────────────
+_meal_logger = logging.getLogger(__name__)
+
+
+def meal_reminder_loop(person_id: str = "resident") -> None:
+    """Background thread: check pill/meal schedules and fire TTS reminders."""
+    med_repo = MedicationRepo()
+    while True:
+        try:
+            med_repo.check_and_trigger_meal_reminders(
+                person_id, speaker=_tts_speak, logger=_meal_logger
+            )
+        except Exception as exc:
+            _meal_logger.warning("meal reminder check failed (non-fatal): %s", exc)
+
+        try:
+            med_repo.check_meal_relative_reminders(person_id, speaker=_tts_speak)
+        except Exception as exc:
+            _meal_logger.warning("meal-relative reminder check failed (non-fatal): %s", exc)
+
+        time.sleep(60)
+
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 
 def run(source=0):
@@ -172,6 +198,7 @@ def run(source=0):
         return
 
     threading.Thread(target=deviation_check_loop, daemon=True).start()
+    threading.Thread(target=meal_reminder_loop, daemon=True).start()
 
     # Rolling buffer of angle frames for LSTM
     frame_buffer = collections.deque(maxlen=SEQUENCE_LENGTH)
