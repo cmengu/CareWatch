@@ -1,0 +1,5 @@
+drinking_water
+eating
+pill_intake
+sitting
+walking

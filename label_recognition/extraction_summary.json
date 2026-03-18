@@ -1,0 +1,57 @@
+{
+  "total_images": 15,
+  "successful_extraction": {
+    "medication": 10,
+    "instructions": 12,
+    "patient_name": 0
+  },
+  "results_by_image": {
+    "8": {
+      "medication": "\u2705 Fusithal",
+      "instructions": "\u2705 1 drop/s to both eyes 2 times a day",
+      "patient_name": "\u26a0\ufe0f null"
+    },
+    "9": {
+      "medication": "\u2705 Nazolin Nasal Spray",
+      "instructions": "\u2705 3 times a day",
+      "patient_name": "\u26a0\ufe0f null"
+    },
+    "10": {
+      "medication": "\u2705 benzydamine",
+      "instructions": "\u274c null",
+      "patient_name": "\u26a0\ufe0f null"
+    },
+    "11": {
+      "medication": "\u2705 URAL POWDER 4G",
+      "instructions": "\u2705 orally 1 sachet 3 times",
+      "patient_name": "\u274c URINE INFECTIONS (wrong)"
+    },
+    "12": {
+      "medication": "\u274c null",
+      "instructions": "\u2705 2 TABLETS 3 TIMES",
+      "patient_name": "\u26a0\ufe0f null"
+    },
+    "13": {
+      "medication": "\u2705 Hydrocortisone",
+      "instructions": "\u2705 7 amount 2 times",
+      "patient_name": "\u26a0\ufe0f null"
+    },
+    "14": {
+      "medication": "\u274c null",
+      "instructions": "\u2705 4 time 3 times",
+      "patient_name": "\u26a0\ufe0f null"
+    },
+    "15": {
+      "medication": "\u26a0\ufe0f truncated (100mi)",
+      "instructions": "\u274c null",
+      "patient_name": "\u26a0\ufe0f null"
+    }
+  },
+  "issues_to_fix": [
+    "Image 12: Missing medication name (OCR shows '42 CAPSULE FOR DIARRHEA' - no med name visible)",
+    "Image 14: Missing medication name (OCR unclear/corrupted)",
+    "Image 15: Medication name truncated at (100mi - should be (100ml))",
+    "Image 11: Patient name incorrectly extracting 'URINE INFECTIONS' (should be null)",
+    "Image 10: Missing instructions (need to find better pattern for benzydamine tablets)"
+  ]
+}
