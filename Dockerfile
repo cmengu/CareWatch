@@ -16,4 +16,4 @@ EXPOSE 8000
 RUN useradd --create-home carewatch && chown -R carewatch:carewatch /app
 USER carewatch
 
-CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.api:app --host 0.0.0.0 --port ${PORT:-8000}"]
