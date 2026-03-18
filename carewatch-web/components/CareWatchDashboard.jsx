@@ -326,6 +326,15 @@ export default function CareWatchDashboard() {
   const [liveData, setLiveData] = useState(INITIAL_LIVE);
   const [injecting,setInjecting]= useState(false);
 
+  // Consent gate — PDPA compliance (Step 5 merge)
+  const [consented, setConsented] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem("carewatch_consent") === "true"
+  );
+
+  // Medication label scan (Step 5 merge)
+  const [scanResult, setScanResult] = useState(null);
+  const [scanning,   setScanning]   = useState(false);
+
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   // Use live data when API is reachable; otherwise fall back to demo constants
@@ -436,6 +445,62 @@ export default function CareWatchDashboard() {
     minute: "2-digit",
     second: "2-digit",
   });
+
+  // ── Consent handlers (PDPA compliance) ────────────────────────────────────
+  const residentId = "resident_001";
+  const handleConsent = async () => {
+    try {
+      await fetch(`${API}/residents/${residentId}/consent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consented: true, consented_by: "caregiver" }),
+      });
+    } catch (_) {}
+    localStorage.setItem("carewatch_consent", "true");
+    setConsented(true);
+  };
+
+  // ── Medication scan handler ────────────────────────────────────────────────
+  const handleScan = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setScanning(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(`${API}/residents/${residentId}/scan`, {
+        method: "POST", body: formData,
+      });
+      const data = await res.json();
+      setScanResult(data);
+    } catch (err) {
+      console.error("Scan failed:", err);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  // ── Consent gate — show modal before dashboard ────────────────────────────
+  if (!consented) {
+    return (
+      <div style={{ background: "#080b12", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Mono','Courier New',monospace" }}>
+        <div style={{ background: "#0d1117", border: "1px solid #1e2535", borderRadius: 8, padding: 32, maxWidth: 480, color: "#c9d1d9" }}>
+          <h2 style={{ color: "#4a9eff", marginTop: 0 }}>CareWatch Data Consent</h2>
+          <p style={{ fontSize: 12, lineHeight: 1.6 }}>
+            CareWatch collects activity logs and medication events to monitor resident health.
+            Data is stored locally and never shared with third parties.
+            See <strong>data_privacy_plan.md</strong> for full details.
+          </p>
+          <button
+            onClick={handleConsent}
+            style={{ background: "#4a9eff", color: "#fff", border: "none", borderRadius: 4, padding: "10px 24px", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}
+          >
+            I Agree
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -564,6 +629,20 @@ export default function CareWatchDashboard() {
           </div>
 
           <div style={{ fontSize: 8, color: "#2d3550", letterSpacing: 3, marginTop: 4 }}>MEDICATION</div>
+
+          {/* Scan upload button */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0" }}>
+            <input type="file" accept="image/*" onChange={handleScan} id="scan-upload" style={{ display: "none" }} />
+            <label htmlFor="scan-upload" style={{ background: "#1e2535", color: "#4a9eff", border: "1px solid #4a9eff", borderRadius: 3, padding: "3px 10px", cursor: "pointer", fontSize: 9, letterSpacing: 1 }}>
+              {scanning ? "SCANNING..." : "SCAN LABEL"}
+            </label>
+            {scanResult && (
+              <span style={{ fontSize: 9, color: "#00e676" }}>
+                {scanResult.medication_name} {scanResult.dose} ({Math.round(scanResult.confidence * 100)}%)
+              </span>
+            )}
+          </div>
+
           <div style={{ ...panel, padding: "8px 10px" }}>
             {data.medication.map((med, i) => {
               const isMissed = !med.done && mode === "crisis";
