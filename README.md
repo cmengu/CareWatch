@@ -5,30 +5,21 @@ AI-powered activity monitoring for elderly residents. Detects behavioural deviat
 ---
 
 ## Architecture
-```
-activity_log (SQLite)
-        │
-        ▼
-DeviationDetector ──► CareWatchOrchestrator (LangGraph)
-  personalised              │
-  baseline z-score          ▼
-  + fall override     route_node
-                       │        │        │
-                       ▼        ▼        ▼
-                   FallAgent  MedAgent  RoutineAgent
-                    (RAG)      (RAG)     (RAG)
-                       │        │        │
-                       └────────┴────────┘
-                                │
-                                ▼
-                          SummaryAgent
-                       priority synthesis
-                                │
-                                ▼
-                    AlertSuppressionLayer
-                                │
-                                ▼
-                        Telegram alert
+```mermaid
+graph TD
+    A[activity_log (SQLite)] --> B[DeviationDetector]
+    B --> C[CareWatchOrchestrator LangGraph]
+    C --> D{route_node}
+    D -->|FALLEN/UNCLEARED| E[FallAgent]
+    D -->|pill_taking| F[MedAgent]
+    D -->|eating/walking/routine| G[RoutineAgent]
+    E --> H[SummaryAgent]
+    F --> H
+    G --> H
+    H -->|RED| I[human_gate_node]
+    H -->|YELLOW/GREEN| J[AlertSuppressionLayer]
+    I -->|caregiver /clear| J
+    J --> K[Telegram Alert]
 ```
 
 Three agent implementations share the same `run()` interface and are benchmarked against 20 deterministic eval scenarios:
@@ -45,11 +36,11 @@ Three agent implementations share the same `run()` interface and are benchmarked
 
 ### Agent Comparison (20 scenarios, --no-llm mode)
 
-| Agent | F1 | FNR | LLM Alignment | p50 | p95 |
-|-------|----|-----|---------------|-----|-----|
-| Custom (Phase 1) | 1.000 | 0.000 | 95% | 1ms | 2ms |
-| LangGraph multi-agent | 1.000 | 0.000 | 95% | 454ms | 2424ms |
-| LangChain | 1.000 | 0.000 | 95% | 1ms | 9ms |
+| Agent | F1 | FNR | LLM Alignment | p50 | p95 | Tokens/run |
+|-------|----|-----|---------------|-----|-----|------------|
+| Custom (Phase 1) | 1.000 | 0.000 | 95% | 1ms | 2ms | TBD |
+| LangGraph multi-agent | 1.000 | 0.000 | 95% | 454ms | 2424ms | TBD |
+| LangChain | 1.000 | 0.000 | 95% | 1ms | 9ms | TBD |
 
 **FNR = 0.000** — no fall or active alert was missed across all 20 test cases, including the minimum-confidence fall at 0.851 and a 3-day-old uncleared alert. In a safety system, a missed fall is worse than a false alarm. That number being zero is the design goal.
 
@@ -95,6 +86,7 @@ Recall@3 > 1.0 indicates two queries each had two relevant documents in the top 
 git clone https://github.com/your-handle/carewatch
 cd carewatch
 cp .env.example .env          # add GROQ_API_KEY, CAREWATCH_BOT_TOKEN, CAREWATCH_CHAT_ID
+python generate_mock_data.py   # populate DB before first run
 docker-compose up
 ```
 
@@ -129,6 +121,19 @@ python -m eval.eval_agent            # full run including LLM alignment scoring
 **6. Personalised baselines per resident over population norms.** A resident who always takes pills at 9pm generates false positives under a population norm expecting 8am. Per-resident 7-day rolling baselines calibrate detection to individual routines. Tradeoff: residents with fewer than 7 days of history have thin baselines and may generate early false positives.
 
 **7. Groq (llama-3.3-70b-versatile) over GPT-4o.** Sub-300ms p50 inference vs ~800ms typical for GPT-4o on this prompt size. The concern-level classification task does not require GPT-4o's reasoning depth — a well-structured chain-of-thought prompt achieves 100% alignment on llama-3.3-70b. Tradeoff: Groq free tier has a 100k token/day limit.
+
+---
+
+## Graceful Degradation
+
+| Dependency | Failure mode | System behaviour | Impact |
+|------------|-------------|------------------|--------|
+| Groq API | `_fallback()` fires | concern_level derived from risk_level | Degraded explanation, alert still fires |
+| ChromaDB | `_available = False` | `rag_context = ""` | Lower quality explanation, alert still fires |
+| SQLite lock | WAL mode + 30s timeout | Retry without blocking readers | None under normal load |
+| Telegram API | Exception caught, logged | Alert logged to DB, not delivered | Delayed delivery |
+
+**Known gap:** Telegram retry queue not implemented. Fix: `alert_send_queue` table with `retry_count` and `next_retry_at`, polled every 30s.
 
 ---
 

@@ -1,0 +1,45 @@
+# Secrets — never in image
+.env
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.cursor/
+.idea/
+.vscode/
+
+# Data: keep DB/Chroma out of context; bake prompts for Dockerfile COPY.
+# Note: `data/` + `!data/prompts/` does not work in Docker (excluded parent blocks re-include).
+data/*
+!data/prompts/
+!data/prompts/**
+
+# Model weights (not needed for DB-based pipeline)
+*.pt
+model/
+
+# Build artifacts
+runs/
+Ultralytics/
+datasets/
+*.egg-info/
+dist/
+build/
+
+# Frontend (not containerised in this phase)
+carewatch-web/
+node_modules/
+
+# Eval results
+eval/results/

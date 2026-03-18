@@ -1,0 +1,18 @@
+# CareWatch — pipeline + Telegram listener; shared data volume, env from .env
+services:
+  carewatch:
+    build: .
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  telegram_listener:
+    build: .
+    command: python -m src.telegram_listener
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
