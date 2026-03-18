@@ -13,7 +13,7 @@ COPY run_pipeline.py .
 COPY data/ data/
 
 EXPOSE 8000
-RUN useradd --create-home carewatch
+RUN useradd --create-home carewatch && chown -R carewatch:carewatch /app
 USER carewatch
 
 CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]
