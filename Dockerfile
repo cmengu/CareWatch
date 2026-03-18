@@ -11,6 +11,7 @@ COPY app/ app/
 COPY src/ src/
 COPY run_pipeline.py .
 COPY data/ data/
+RUN python -m src.knowledge_base
 
 EXPOSE 8000
 RUN useradd --create-home carewatch && chown -R carewatch:carewatch /app
