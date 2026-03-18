@@ -72,6 +72,7 @@ class AlertSuppressionLayer:
         risk_result: dict,
         person_name: str = "Your family member",
         resident_id: str = "default",
+        voice_alert: bool = False,
     ) -> dict:
         """
         Drop-in replacement for AlertSystem.send().
@@ -133,7 +134,7 @@ class AlertSuppressionLayer:
             )
 
         # Fire the alert
-        self.alert_system.send(risk_result, person_name=person_name)
+        self.alert_system.send(risk_result, person_name=person_name, voice_alert=voice_alert)
 
         self._log_decision(
             resident_id=resident_id,
