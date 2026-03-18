@@ -11,13 +11,15 @@ Run:
     python -m pytest tests/test_merge_integration.py -v -k "scan"
 """
 
+import json
 import sqlite3
 import tempfile
 import os
 import pytest
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+from src.models import RiskResult
 
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
@@ -112,7 +114,8 @@ def seed_medication_events(db_path: str, person_id: str, events: list) -> None:
     """Seed medication_event rows directly."""
     with sqlite3.connect(db_path) as conn:
         for med_name, days_ago in events:
-            ts = (datetime.now(tz=None) - timedelta(days=days_ago)).isoformat()
+            # naive UTC — matches MedicationRepo.record_event() convention
+            ts = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_ago)).isoformat()
             conn.execute(
                 "INSERT INTO medication_event "
                 "(person_id, medication_name, timestamp, scheduled_id, on_time, source) "
@@ -153,47 +156,62 @@ def test_21_scan_node_noop_without_image(db):
     assert result.get("scan_result") is None, (
         f"scan_result should be None when image_bytes absent, got: {result.get('scan_result')}"
     )
-    print("TC21 PASS: scan_node is no-op without image_bytes")
 
 
 # ── TC22: scan_node processes image_bytes ─────────────────────────────────────
 
 def test_22_scan_node_processes_image(db):
     """scan_node must populate scan_result when image_bytes is non-empty."""
+    from src.label_detector import MedicationLabelDetector
+    fixed_scan = {
+        "medication_name": "Metformin",
+        "dose": "500mg",
+        "meal_relation": "after",
+        "confidence": 0.91,
+    }
     state = {
         "person_id": "test_scan_active",
         "send_alert": False,
         "image_bytes": b"MOCK_IMAGE_BYTES",
     }
-    result = invoke_graph(state, db)
+    with patch.object(MedicationLabelDetector, "extract_from_image", return_value=fixed_scan):
+        result = invoke_graph(state, db)
+
     scan = result.get("scan_result")
     assert scan is not None, "scan_result must be set when image_bytes provided"
-    assert "medication_name" in scan, f"scan_result missing medication_name: {scan}"
-    assert "confidence" in scan, f"scan_result missing confidence: {scan}"
-    assert "meal_relation" in scan, f"scan_result missing meal_relation: {scan}"
-    assert 0.0 <= scan["confidence"] <= 1.0, f"confidence out of range: {scan['confidence']}"
-    print(f"TC22 PASS: scan_result = {scan['medication_name']} {scan.get('dose')} "
-          f"(confidence={scan['confidence']:.0%})")
+    assert scan["medication_name"] == "Metformin", f"medication_name mismatch: {scan}"
+    assert scan["dose"] == "500mg", f"dose mismatch: {scan}"
+    assert scan["meal_relation"] == "after", f"meal_relation mismatch: {scan}"
+    assert scan["confidence"] == 0.91, f"confidence mismatch: {scan['confidence']}"
 
 
 # ── TC23: scan records medication_event in DB ─────────────────────────────────
 
 def test_23_scan_records_medication_event(db):
     """scan_node must write a medication_event row for the scanned medication."""
+    from src.label_detector import MedicationLabelDetector
+    fixed_scan = {
+        "medication_name": "Lisinopril",
+        "dose": "10mg",
+        "meal_relation": "fixed",
+        "confidence": 0.88,
+    }
     person_id = "test_scan_record"
     state = {
         "person_id": person_id,
         "send_alert": False,
         "image_bytes": b"MOCK_IMAGE_BYTES_RECORD",
     }
-    invoke_graph(state, db)
+    with patch.object(MedicationLabelDetector, "extract_from_image", return_value=fixed_scan):
+        invoke_graph(state, db)
+
     with sqlite3.connect(db) as conn:
         rows = conn.execute(
             "SELECT medication_name FROM medication_event WHERE person_id = ?",
             (person_id,),
         ).fetchall()
     assert len(rows) == 1, f"Expected 1 medication_event row, got {len(rows)}"
-    print(f"TC23 PASS: medication_event recorded — {rows[0][0]}")
+    assert rows[0][0] == "Lisinopril", f"Expected 'Lisinopril', got '{rows[0][0]}'"
 
 
 # ── TC24: ChronicAgent infers T2DM from Metformin history ─────────────────────
@@ -209,9 +227,7 @@ def test_24_chronic_agent_infers_t2dm(db):
         "person_id": person_id,
         "send_alert": False,
         "image_bytes": None,
-        "_inject_pill_missing": True,
     }
-    from src.models import RiskResult
     mock_risk = RiskResult(
         risk_score=55, risk_level="YELLOW",
         summary="Metformin missed",
@@ -227,7 +243,6 @@ def test_24_chronic_agent_infers_t2dm(db):
     assert any(
         kw in summary.lower() for kw in ["diabetes", "metformin", "chronic", "medication history"]
     ), f"Expected T2DM/chronic reference in summary, got: {summary}"
-    print(f"TC24 PASS: ChronicAgent summary = {summary[:100]}...")
 
 
 # ── TC25: ChronicAgent — insufficient history returns normal ──────────────────
@@ -241,7 +256,6 @@ def test_25_chronic_agent_insufficient_history(db):
         "send_alert": False,
         "image_bytes": None,
     }
-    from src.models import RiskResult
     mock_risk = RiskResult(
         risk_score=30, risk_level="YELLOW",
         summary="Omeprazole missed",
@@ -252,7 +266,6 @@ def test_25_chronic_agent_insufficient_history(db):
         result = invoke_graph(state, db)
 
     assert result.get("final_result") is not None, "final_result must not be None"
-    print("TC25 PASS: ChronicAgent handled insufficient history without error")
 
 
 # ── TC26: MedScanAgent low-confidence path ────────────────────────────────────
@@ -283,7 +296,6 @@ def test_26_med_scan_agent_low_confidence(db):
     assert scan_outputs[0].concern_level == "watch", (
         f"Expected concern=watch for low-confidence scan, got: {scan_outputs[0].concern_level}"
     )
-    print(f"TC26 PASS: MedScanAgent concern={scan_outputs[0].concern_level} for confidence=52%")
 
 
 # ── TC27: PII stripped from alert payload ─────────────────────────────────────
@@ -305,7 +317,6 @@ def test_27_pii_stripped_from_alert(db):
         },
     }
     cleaned = strip_pii(payload)
-    import json
     cleaned_str = json.dumps(cleaned)
     assert "Mrs Tan Ah Kow" not in cleaned_str, (
         f"PII found in stripped payload: {cleaned_str}"
@@ -313,14 +324,12 @@ def test_27_pii_stripped_from_alert(db):
     assert "[REDACTED]" in cleaned_str or "REDACTED" in cleaned_str, (
         "Expected [REDACTED] markers in cleaned payload"
     )
-    print("TC27 PASS: PII stripped from alert payload")
 
 
 # ── TC28: TTS fires when voice_alert=True ─────────────────────────────────────
 
 def test_28_tts_fires_on_voice_alert(db):
     """speak() must be called exactly once when voice_alert=True and level is YELLOW."""
-    from src.models import RiskResult
     mock_risk = RiskResult(
         risk_score=55, risk_level="YELLOW",
         summary="Sertraline missed",
@@ -346,4 +355,3 @@ def test_28_tts_fires_on_voice_alert(db):
     assert "sertraline" in speak_calls[0].lower() or "carewatch" in speak_calls[0].lower(), (
         f"TTS message does not mention CareWatch or medication: {speak_calls[0]}"
     )
-    print(f"TC28 PASS: speak() called once — '{speak_calls[0][:80]}...'")

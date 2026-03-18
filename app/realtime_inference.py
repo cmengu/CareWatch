@@ -16,21 +16,29 @@ CONTROLS:
   S — save current frame as screenshot
 """
 
-import sys, os, argparse, time, collections, threading
+import argparse
+import collections
+import logging
+import os
+import sys
+import threading
+import time
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import logging
 import cv2
 import numpy as np
 import torch
 from ultralytics import YOLO
 
 from src.classification_keypoint import AngleFeatureExtractor, AngleLSTMNet, SEQUENCE_LENGTH, NUM_ANGLE_FEATURES
-from src.logger import ActivityLogger
 from src.deviation_detector import DeviationDetector
+from src.logger import ActivityLogger
+from src.medication import MedicationRepo
 from src.suppression import AlertSuppressionLayer
 from src.tts import speak as _tts_speak
-from src.medication import MedicationRepo
+
+logger = logging.getLogger(__name__)
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 POSE_MODEL_PATH  = "yolo11x-pose.pt"
@@ -56,13 +64,13 @@ ACTIVITY_COLOURS = {
 def load_models():
     device = torch.device("mps" if torch.backends.mps.is_available() else
                           "cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}")
+    logger.info("Device: %s", device)
 
     pose_model = YOLO(POSE_MODEL_PATH)
 
     # Load label classes
     if not os.path.exists(LABEL_CLASS_PATH):
-        print(f"⚠️  {LABEL_CLASS_PATH} not found. Run training first.")
+        logger.warning("%s not found. Run training first. Using default label set.", LABEL_CLASS_PATH)
         label_classes = ["sitting","eating","walking","pill_taking","lying_down","no_person","fallen"]
     else:
         with open(LABEL_CLASS_PATH) as f:
@@ -79,11 +87,11 @@ def load_models():
     ).to(device)
 
     if os.path.exists(LSTM_MODEL_PATH):
-        lstm_model.load_state_dict(torch.load(LSTM_MODEL_PATH, map_location=device))
+        lstm_model.load_state_dict(torch.load(LSTM_MODEL_PATH, map_location=device, weights_only=True))
         lstm_model.eval()
-        print(f"✅ LSTM model loaded from {LSTM_MODEL_PATH}")
+        logger.info("LSTM model loaded from %s", LSTM_MODEL_PATH)
     else:
-        print(f"⚠️  No trained model found at {LSTM_MODEL_PATH}. Running pose-only mode.")
+        logger.warning("No trained model found at %s. Running pose-only mode.", LSTM_MODEL_PATH)
         lstm_model = None
 
     return pose_model, lstm_model, label_classes, device
@@ -158,14 +166,15 @@ def draw_overlay(frame, activity, confidence, fps):
 def deviation_check_loop():
     """Background thread: compare today vs baseline, send alerts if needed."""
     while True:
-        result = DeviationDetector().check("resident")
-        AlertSuppressionLayer().send(result, person_name="Mrs Tan", resident_id="default")
+        try:
+            result = DeviationDetector().check("resident")
+            AlertSuppressionLayer().send(result, person_name="Mrs Tan", resident_id="default")
+        except Exception as e:
+            logger.warning("deviation_check_loop: check/send failed (non-fatal): %s", e)
         time.sleep(900)  # 15 minutes
 
 
 # ── MEAL REMINDER LOOP (runs every 60 s) ────────────────────────────────────
-_meal_logger = logging.getLogger(__name__)
-
 
 def meal_reminder_loop(person_id: str = "resident") -> None:
     """Background thread: check pill/meal schedules and fire TTS reminders."""
@@ -173,15 +182,15 @@ def meal_reminder_loop(person_id: str = "resident") -> None:
     while True:
         try:
             med_repo.check_and_trigger_meal_reminders(
-                person_id, speaker=_tts_speak, logger=_meal_logger
+                person_id, speaker=_tts_speak, logger=logger
             )
         except Exception as exc:
-            _meal_logger.warning("meal reminder check failed (non-fatal): %s", exc)
+            logger.warning("meal reminder check failed (non-fatal): %s", exc)
 
         try:
             med_repo.check_meal_relative_reminders(person_id, speaker=_tts_speak)
         except Exception as exc:
-            _meal_logger.warning("meal-relative reminder check failed (non-fatal): %s", exc)
+            logger.warning("meal-relative reminder check failed (non-fatal): %s", exc)
 
         time.sleep(60)
 
@@ -190,11 +199,11 @@ def meal_reminder_loop(person_id: str = "resident") -> None:
 def run(source=0):
     pose_model, lstm_model, label_classes, device = load_models()
     extractor = AngleFeatureExtractor()
-    logger = ActivityLogger()
+    activity_logger = ActivityLogger()
 
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
-        print(f"❌ Cannot open source: {source}")
+        logger.error("Cannot open source: %s", source)
         return
 
     threading.Thread(target=deviation_check_loop, daemon=True).start()
@@ -207,7 +216,7 @@ def run(source=0):
     current_confidence = 0.0
     prev_time          = time.time()
 
-    print("▶  CareWatch running. Press Q to quit, S to screenshot.")
+    logger.info("CareWatch running. Press Q to quit, S to screenshot.")
 
     while True:
         ret, frame = cap.read()
@@ -242,7 +251,7 @@ def run(source=0):
                 current_activity   = label_classes[top_idx]
                 current_confidence = top_conf
                 if current_confidence >= 0.85:
-                    logger.log(current_activity, current_confidence)
+                    activity_logger.log(current_activity, current_confidence)
             else:
                 current_activity   = "unknown"
                 current_confidence = top_conf
@@ -263,11 +272,11 @@ def run(source=0):
         elif key == ord("s"):
             fname = f"screenshot_{int(time.time())}.jpg"
             cv2.imwrite(fname, frame)
-            print(f"📸 Saved {fname}")
+            logger.info("Screenshot saved: %s", fname)
 
     cap.release()
     cv2.destroyAllWindows()
-    print("👋 CareWatch stopped.")
+    logger.info("CareWatch stopped.")
 
 
 if __name__ == "__main__":

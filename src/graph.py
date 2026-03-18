@@ -30,7 +30,7 @@ USAGE:
 import dataclasses
 import logging
 import operator
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Annotated, Optional, TypedDict
 
 from langgraph.graph import StateGraph, END
@@ -92,7 +92,7 @@ def _make_scan_node(db_path: str):
             repo.record_event(
                 person_id=person_id,
                 med_name=scan_result["medication_name"],
-                ts=datetime.utcnow(),
+                ts=datetime.now(timezone.utc).replace(tzinfo=None),
                 source="ai",
             )
             logger.info("scan_node: recorded %s intake for %s (confidence=%.2f)",

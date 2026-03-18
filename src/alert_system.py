@@ -17,6 +17,8 @@ import requests
 from datetime import datetime
 from pathlib import Path
 
+from src.privacy import strip_pii as _strip_pii
+
 logger = logging.getLogger(__name__)
 
 _env_path = Path(__file__).resolve().parents[1] / ".env"
@@ -49,7 +51,6 @@ class AlertSystem:
             logger.info("%s — all normal, no alert sent.", person_name)
             return
 
-        from src.privacy import strip_pii as _strip_pii
         safe_result      = _strip_pii(risk_result)
         person_name_safe = html.escape(str(person_name))
         summary_safe     = html.escape(str(safe_result.get("summary", "No summary available.")))
@@ -123,7 +124,6 @@ class AlertSystem:
                            voice_alert: bool = False):
         level = risk_result.get("risk_level", "UNKNOWN")
         score = risk_result.get("risk_score", 0)
-        from src.privacy import strip_pii as _strip_pii
         safe_result = _strip_pii(risk_result)
         message = (
             f"{RISK_EMOJI.get(level, '❓')} <b>CareWatch Daily Summary — {html.escape(str(person_name))}</b>\n"
