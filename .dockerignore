@@ -24,6 +24,7 @@ __pycache__/
 data/*
 !data/prompts/
 !data/prompts/**
+!data/drug_interactions.txt
 
 # Model weights (not needed for DB-based pipeline)
 *.pt
