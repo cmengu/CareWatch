@@ -1,5 +1,7 @@
 # CareWatch
 
+Link to our Monitoring dashboard: https://carewatch-blue.vercel.app/dashboard.html
+
 > Multi-agent AI system for elderly care monitoring. Detects behavioural deviations from personal baselines, generates family-facing explanations via RAG + LLM, fires Telegram alerts with optional TTS delivery, and enforces PDPA-aligned data privacy.
 > **FNR = 0.000 across all 20 eval scenarios. No fall was ever missed.**
 
