@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "buildCommand": null,
-  "outputDirectory": ".",
-  "rewrites": [{ "source": "/(.*)", "destination": "/dashboard.html" }]
+  "builds": [{ "src": "dashboard.html", "use": "@vercel/static" }],
+  "routes": [{ "src": "/(.*)", "dest": "/dashboard.html" }]
 }
