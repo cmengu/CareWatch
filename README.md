@@ -1,196 +1,87 @@
+<div align="center">
+
 # CareWatch
 
-A multi-tenant community eldercare check-in platform built for Active Ageing Centres (AACs) in Singapore. Volunteers conduct daily wellness check-ins on assigned seniors; AAC staff monitor coverage, review flags, and manage escalations — all from a single system.
+A planned check-in system for Active Ageing Centres in Singapore: volunteers log daily wellness checks on seniors living alone, and centre staff follow up on seniors who cannot be reached. Only a scaffold exists so far.
 
----
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/how-it-works-dark.svg">
+  <img src="docs/how-it-works-light.svg" alt="A line of daily check-ins for one senior: four with outcome ok, then three in a row with outcome no_answer, after which a flag is opened with status open. Marked as planned, not built." width="800">
+</picture>
 
-## Table of Contents
+<sub>Planned rule, not built yet: three missed check-ins in a row open a flag for staff.</sub>
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Data Model](#data-model)
-- [API Reference](#api-reference)
-- [Multi-Tenancy](#multi-tenancy)
-- [Import System](#import-system)
-- [Build Phases](#build-phases)
-- [Portability](#portability)
+</div>
 
----
+## Why
 
-## Overview
+Volunteers are each assigned a small group of seniors and check in daily from a phone browser, with no app to install. Staff see who has not been reached. A senior who goes unanswered for three check-ins in a row is flagged for staff to review.
 
-CareWatch connects volunteers to seniors living alone in HDB blocks. Each volunteer is assigned a small group of seniors and performs daily check-ins via a Progressive Web App (PWA) — no app store, no installation required. AAC staff see real-time dashboards, open flag queues, and can escalate cases when a senior is unreachable.
+## Status
 
-The system is designed for:
-- **Low-end Android devices** — PWA avoids storage and compatibility constraints
-- **Multi-tenancy from day one** — 20+ AACs, each fully isolated at the database level
-- **Zero vendor lock-in** — Docker + Prisma + Terraform, deployable on any cloud
+Built (in `src/`):
 
----
+- Vite + React + TypeScript app with Tailwind and a PWA manifest (`vite.config.ts`)
+- A typed Supabase client (`src/lib/supabase.ts`) and domain types for six tables (`src/lib/types.ts`)
 
-## Architecture
+Not built: login, check-in form, staff dashboard, flag logic, XLSX import, database schema and row-level security policies, any backend, Docker, Terraform. Everything below this section describes the plan in `.claude/plans/carewatch-demo.md` and `.claude/project/tech-stack.md`, not working code.
 
-```mermaid
-graph TD
-    V[Volunteers\nPWA on Android browser]
-    S[AAC Staff\nDashboard]
-    CF[Vercel / CloudFront\nReact + Vite Frontend]
-    API[Fastify REST API\nECS Fargate · Docker]
-    DB[(PostgreSQL\nAWS RDS · Singapore)]
-    REDIS[(Redis\nAWS ElastiCache)]
-    FCM[Firebase Cloud Messaging\nPush Notifications]
-    XLSX[XLSX Import Adapter\nSheetJS → normalised JSON]
-    FUTURE[Future Adapters\nSocialServiceNet · CRM]
+## Running it
 
-    V -->|HTTPS| CF
-    S -->|HTTPS| CF
-    CF -->|REST| API
-    API --> DB
-    API --> REDIS
-    REDIS -->|BullMQ job queues| FCM
-    FCM -->|Web Push| V
-    API --> XLSX
-    XLSX -->|POST /import| API
-    FUTURE -.->|same endpoint| API
+You need a Supabase project URL and a client key. Copy `.env.example` to `.env.local` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; the app throws on start if either is missing (`src/lib/supabase.ts`).
+
+```bash
+npm install --legacy-peer-deps   # plain `npm install` fails: vite-plugin-pwa@1.2.0 has a peer conflict with vite@8
+npm run dev
 ```
 
----
+The scaffold makes no Supabase calls yet, so any well-formed URL and key value gets you to the page in the screenshot.
 
-## Tech Stack
+## Planned flow
 
-### Demo (Zero Cost)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/how-it-works-dark.svg">
+  <img src="docs/how-it-works-light.svg" alt="A line of daily check-ins for one senior: four with outcome ok, then three with outcome no_answer, after which a flag is opened with status open. Marked as planned, not built." width="800">
+</picture>
 
-| Layer | Choice | Why |
-|---|---|---|
-| Volunteer interface | PWA (React + Vite) on Vercel | No app store, runs in any Android browser |
-| AAC dashboard | Same React app, different route | One codebase, free tier |
-| Backend + DB | Supabase free tier | PostgreSQL + auth + REST + RLS out of the box |
-| Auth | Supabase Auth — email OTP | Twilio costs money; email OTP is free |
-| XLSX import | SheetJS in-browser → POST to Supabase | Zero backend cost |
-| Push notifications | Skipped for demo | Not needed to prove the concept |
+The demo plan has the frontend check the last three outcomes after each check-in and create or update a flag; there is no background job in the demo. Check-in outcomes are `ok`, `no_answer` or `flagged`. Flag statuses are `open`, `reviewed`, `actioned` and `escalated`.
 
-### Production
+## Data model
 
-| Layer | Choice | Why |
-|---|---|---|
-| Volunteer interface | PWA (React + Vite) | Old budget phones can't be assumed to have storage; PWA runs in browser, works on Android 8+ |
-| AAC dashboard | React + Vite, separate deployment | Internal tool — fast to build and maintain |
-| Backend | Node.js + Fastify | Lightweight, fast, strong ecosystem |
-| Database | PostgreSQL on AWS RDS (ap-southeast-1) | Relational model suits assignments + check-ins + audit logs; PDPA compliance |
-| Auth | JWT — volunteers via Twilio OTP, staff via email + password | Phone OTP reduces friction for less tech-savvy volunteers |
-| XLSX import | SheetJS on frontend → normalised POST | Any staff can upload a spreadsheet without IT involvement |
-| Push notifications | Firebase Cloud Messaging (Web Push) | Free generous tier; works on Android Chrome |
-| Background jobs | BullMQ + Redis (ElastiCache) | Daily reminders, auto-escalation after 3 consecutive no-answers |
-| Hosting | AWS ap-southeast-1 — ECS Fargate, RDS, S3 + CloudFront | Singapore region, no vendor lock-in |
-| Portability | Docker + Prisma migrations + Terraform IaC | Full infrastructure as code; handover-ready |
-| Monitoring | AWS CloudWatch + Sentry | Standard, cost-effective |
+`src/lib/types.ts` defines these tables: `aacs`, `profiles` (role `volunteer`, `staff` or `admin`), `seniors`, `assignments`, `checkins` and `flags`. Every table except `aacs` carries `aac_id`. `EscalationLevel` (`review`, `urgent`, `emergency`) is defined as a type, but there is no escalation table in `types.ts`.
 
----
+The plan also lists an escalation cases table and an audit log, which are not in the code. The schema file the types refer to (`supabase/schema.sql`) does not exist in the repo.
 
-## Data Model
+## Multi-tenancy
 
-```mermaid
-erDiagram
-    SENIORS {
-        uuid id PK
-        uuid aac_id FK
-        string name
-        string unit_number
-        uuid block_id FK
-        string preferred_language
-        text mobility_notes
-        string consent_status
-        date consent_date
-        text aac_notes
-        jsonb visible_fields
-        timestamp created_at
-        timestamp updated_at
-    }
+The plan is for every core table to carry `aac_id`, with PostgreSQL row-level security so that a user from one centre cannot read another centre's rows at the database level, not just in the application. Staff and admin roles would be scoped to their centre by the JWT. A super-admin role for the central team would query across centres for reporting. None of the policies are written yet.
 
-    VOLUNTEERS {
-        uuid id PK
-        uuid aac_id FK
-        string phone_number
-        string name
-        uuid block_id FK
-        bool verified
-        bool active
-        timestamp joined_at
-        timestamp last_active_at
-    }
+## Import
 
-    ASSIGNMENTS {
-        uuid id PK
-        uuid aac_id FK
-        uuid volunteer_id FK
-        uuid senior_id FK
-        uuid assigned_by FK
-        timestamp assigned_at
-        timestamp ended_at
-    }
+Planned: staff upload an XLSX file, the browser parses it with SheetJS and shows a column-mapping screen, and the confirmed rows go to the database. The demo plan does this as an upsert on a unique `(aac_id, unit_number)` index through Supabase. The production plan instead posts normalised JSON to `POST /aac/:id/seniors/import`, so that other sources (the plan names SocialServiceNet and custom CRMs) could use the same endpoint. `xlsx` is in `package.json`; nothing calls it yet.
 
-    CHECKINS {
-        uuid id PK
-        uuid aac_id FK
-        uuid volunteer_id FK
-        uuid senior_id FK
-        string outcome
-        text notes
-        timestamp created_at
-    }
+## Planned stack
 
-    FLAGS {
-        uuid id PK
-        uuid aac_id FK
-        uuid checkin_id FK
-        uuid senior_id FK
-        int consecutive_count
-        string status
-        uuid actioned_by FK
-        timestamp actioned_at
-        text staff_notes
-    }
+Demo, from the plan: PWA (React + Vite) on Vercel, Supabase for Postgres, auth and row-level security, email OTP login, SheetJS import in the browser, no push notifications.
 
-    ESCALATION_CASES {
-        uuid id PK
-        uuid aac_id FK
-        uuid flag_id FK
-        uuid senior_id FK
-        string level
-        uuid opened_by FK
-        timestamp opened_at
-        text action_taken
-        text outcome
-        timestamp closed_at
-    }
+Production, from the plan:
 
-    AUDIT_LOG {
-        uuid id PK
-        uuid aac_id FK
-        uuid actor_id FK
-        string actor_role
-        string action
-        string entity_type
-        uuid entity_id
-        jsonb diff
-        timestamp created_at
-    }
+| Layer | Choice |
+|---|---|
+| Volunteer interface | PWA (React + Vite); the plan assumes it works on Android 8+ |
+| Staff dashboard | React + Vite, separate deployment |
+| Backend | Node.js + Fastify |
+| Database | PostgreSQL on AWS RDS, ap-southeast-1 |
+| Auth | JWT; volunteers by Twilio phone OTP, staff by email and password |
+| Push | Firebase Cloud Messaging (Web Push) |
+| Background jobs | BullMQ + Redis (ElastiCache): daily reminders, auto-escalation after 3 consecutive no-answers |
+| Hosting | ECS Fargate, S3 + CloudFront |
+| Infrastructure | Docker, Prisma migrations, Terraform |
+| Monitoring | CloudWatch, Sentry |
 
-    VOLUNTEERS ||--o{ ASSIGNMENTS : has
-    SENIORS    ||--o{ ASSIGNMENTS : has
-    VOLUNTEERS ||--o{ CHECKINS   : submits
-    SENIORS    ||--o{ CHECKINS   : receives
-    CHECKINS   ||--o| FLAGS      : triggers
-    FLAGS      ||--o| ESCALATION_CASES : escalates_to
-    SENIORS    ||--o{ FLAGS      : flagged_on
-```
+## Planned API
 
-> Every table carries `aac_id`. PostgreSQL Row Level Security (RLS) ensures a volunteer from Tampines AAC can never see a senior from Bishan AAC — the database refuses to return the row, not just the application.
-
----
-
-## API Reference
+None of these endpoints exist. They are the production plan; the demo uses Supabase directly.
 
 | Method | Endpoint | Role | Purpose |
 |---|---|---|---|
@@ -210,104 +101,17 @@ erDiagram
 | PATCH | `/seniors/:id/consent` | Admin | Update consent status |
 | GET | `/reports/coverage` | Super Admin | Cross-AAC coverage report |
 
----
+## Phases
 
-## Multi-Tenancy
+Estimates from the plan, not commitments.
 
-```mermaid
-flowchart LR
-    JWT[JWT Token\naac_id claim]
-    RLS[PostgreSQL RLS\nPolicy]
-    TAMPINES[(Tampines AAC\ndata)]
-    BISHAN[(Bishan AAC\ndata)]
-
-    JWT --> RLS
-    RLS -->|allow| TAMPINES
-    RLS -->|deny| BISHAN
-
-    subgraph "Volunteer from Tampines AAC"
-        JWT
-    end
-```
-
-- Every core table has an `aac_id` column
-- RLS policies enforce that queries only return rows matching the authenticated user's AAC
-- Staff and Admin roles are scoped to their `aac_id` at the JWT level
-- A **super-admin** role (for the central team) can query across all AACs for reporting
-
----
-
-## Import System
-
-```mermaid
-sequenceDiagram
-    actor Staff
-    participant Browser as Browser (SheetJS)
-    participant API as POST /aac/:id/seniors/import
-    participant DB as PostgreSQL
-
-    Staff->>Browser: Upload XLSX spreadsheet
-    Browser->>Browser: Parse with SheetJS
-    Browser->>Staff: Show column-mapping screen
-    Staff->>Browser: Confirm mapping
-    Browser->>API: POST normalised JSON payload
-    API->>API: Validate + check duplicates
-    API->>DB: Insert new records
-    API->>DB: Write audit log entry
-    API->>Browser: Summary (e.g. "48 added, 2 skipped")
-    Browser->>Staff: Display result
-```
-
-The `POST /aac/:id/seniors/import` endpoint is intentionally generic. The XLSX UI is the first adapter — future connectors (SocialServiceNet, custom CRM) will call the same endpoint with normalised JSON, with no changes to the core system.
-
----
-
-## Build Phases
-
-```mermaid
-gantt
-    title CareWatch Build Phases
-    dateFormat  YYYY-MM-DD
-    section Phase 0 — Demo
-    PWA + Supabase setup        :p0a, 2026-04-03, 7d
-    Volunteer check-in flow     :p0b, after p0a, 5d
-    AAC dashboard + XLSX import :p0c, after p0b, 5d
-    Stakeholder demo ready      :milestone, after p0c, 0d
-
-    section Phase 1 — Production MVP
-    AWS Singapore migration     :p1a, after p0c, 10d
-    Multi-AAC RLS + Twilio OTP  :p1b, after p1a, 10d
-    Push notifications + BullMQ :p1c, after p1b, 10d
-    Full audit log + admin UI   :p1d, after p1c, 14d
-
-    section Phase 2 — Integration Layer
-    Existing-system adapter     :p2a, after p1d, 14d
-    Cross-AAC reporting         :p2b, after p2a, 14d
-
-    section Phase 3 — Scale & Insights
-    Analytics + longitudinal data :p3a, after p2b, 28d
-```
-
-| Phase | Scope | Timeline |
+| Phase | Scope | Estimate |
 |---|---|---|
-| **0 — Demo** | PWA + Supabase, check-in flow, dashboard, XLSX import, flagging. Zero cost. | 2–3 weeks |
-| **1 — Production MVP** | AWS Singapore, multi-AAC RLS, Twilio OTP, FCM push, BullMQ jobs, audit log | 6–8 weeks after Phase 0 |
-| **2 — Integration Layer** | Existing-system adapters (SocialServiceNet, CRM), cross-AAC reporting | 4 weeks after Phase 1 stable |
-| **3 — Scale & Insights** | Volunteer fatigue analytics, escalation outcome tracking, SingPass/Corppass integration | Ongoing |
-
----
+| 0 Demo | PWA + Supabase, check-in flow, dashboard, XLSX import, flagging | 2-3 weeks |
+| 1 Production MVP | AWS Singapore, multi-centre RLS, Twilio OTP, push, BullMQ jobs, audit log | 6-8 weeks after phase 0 |
+| 2 Integration | Adapters for existing systems, cross-centre reporting | 4 weeks after phase 1 is stable |
+| 3 Scale and insights | Volunteer fatigue analytics, escalation outcome tracking, SingPass/Corppass | Ongoing |
 
 ## Portability
 
-The system is fully portable by design:
-
-- **Docker** — every service is containerised; no server config required
-- **Prisma migrations** — full schema history with rollback capability
-- **Terraform IaC** — entire AWS infrastructure defined as code
-- **No proprietary lock-in** — all services (RDS, ElastiCache, ECS, CloudFront) have direct equivalents on GCP or Azure
-
-Hand over the repo and the Terraform state file, and any vendor can redeploy the entire system from scratch on any cloud.
-
----
-
-*Built for Singapore's community care network. Designed to scale from one AAC pilot to the national level.*
+The plan is to containerise services with Docker, keep schema history in Prisma migrations and define AWS infrastructure in Terraform, so another vendor could redeploy it. The repo has none of the three today.
