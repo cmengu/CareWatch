@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200" role="img" aria-labelledby="t d">
+  <title id="t">Planned flag rule: three consecutive no-answer check-ins open a flag</title>
+  <desc id="d">A line of daily check-ins for one senior. Four have outcome ok, drawn as grey dots. The next three have outcome no_answer, drawn as accent rings. After the third, a flag is opened with status open.</desc>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14">
+    <text x="40" y="36" fill="#9ba5b0">daily check-ins on one senior</text>
+    <line x1="40" y1="90" x2="740" y2="90" stroke="#444c56" stroke-width="2"/>
+    <g fill="#768390">
+      <circle cx="70" cy="90" r="7"/><circle cx="130" cy="90" r="7"/>
+      <circle cx="190" cy="90" r="7"/><circle cx="250" cy="90" r="7"/>
+    </g>
+    <text x="70" y="124" fill="#9ba5b0" text-anchor="middle">ok</text>
+    <text x="130" y="124" fill="#9ba5b0" text-anchor="middle">ok</text>
+    <text x="190" y="124" fill="#9ba5b0" text-anchor="middle">ok</text>
+    <text x="250" y="124" fill="#9ba5b0" text-anchor="middle">ok</text>
+    <g fill="#0d1117" stroke="#f0a63a" stroke-width="3">
+      <circle cx="330" cy="90" r="9"/><circle cx="410" cy="90" r="9"/><circle cx="490" cy="90" r="9"/>
+    </g>
+    <text x="410" y="124" fill="#f0a63a" text-anchor="middle" font-weight="600">no_answer, three in a row</text>
+    <line x1="580" y1="70" x2="580" y2="110" stroke="#f0a63a" stroke-width="3"/>
+    <text x="596" y="86" fill="#e6edf3" font-weight="600">flag opened</text>
+    <text x="596" y="108" fill="#9ba5b0">status: open</text>
+    <text x="40" y="160" fill="#9ba5b0">Planned, not built. Outcome and status values come from src/lib/types.ts.</text>
+    <text x="40" y="180" fill="#9ba5b0">The three-in-a-row rule comes from .claude/plans/carewatch-demo.md.</text>
+  </g>
+</svg>
