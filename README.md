@@ -2,11 +2,14 @@
 
 # CareWatch
 
-A planned check-in system for Active Ageing Centres in Singapore: volunteers log daily wellness checks on seniors living alone, and centre staff follow up on seniors who cannot be reached. Only the app scaffold exists so far.
+A planned check-in system for Active Ageing Centres in Singapore: volunteers log daily wellness checks on seniors living alone, and centre staff follow up on seniors who cannot be reached. Only a scaffold exists so far.
 
-<img src="docs/app-scaffold.png" alt="Browser screenshot of the CareWatch scaffold: the heading CareWatch and the line Phase 0 demo scaffold" width="720">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/how-it-works-dark.svg">
+  <img src="docs/how-it-works-light.svg" alt="A line of daily check-ins for one senior: four with outcome ok, then three in a row with outcome no_answer, after which a flag is opened with status open. Marked as planned, not built." width="800">
+</picture>
 
-<sub>The app as it runs today (`npm run dev`): a heading and one line of text. There is no login, check-in screen or dashboard yet.</sub>
+<sub>Planned rule, not built yet: three missed check-ins in a row open a flag for staff.</sub>
 
 </div>
 
